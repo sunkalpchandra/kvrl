@@ -492,18 +492,28 @@ def gen_code(
     rng.shuffle(files)
     out = []
     for i in range(n):
-        # build a context from a random rotation of files until target length
+        # build a context from a random rotation of files until target length: skip files
+        # that do not fit and keep looking for smaller ones (never leave a tiny context)
         rot = files[i % len(files) :] + files[: i % len(files)]
         chunks: list[tuple[Path, str]] = []
         total = 0
+        limit = target_tokens - 64
         for f in rot:
             src = f.read_text(errors="ignore")
             t = count_tokens(src)
-            if total + t > target_tokens - 64 and chunks:
-                break
+            if total + t > limit:
+                if not chunks and t > limit:
+                    # single file larger than the budget: truncate by lines to fit
+                    lines = src.splitlines(keepends=True)
+                    keep_lines = max(10, int(len(lines) * limit / max(1, t)))
+                    src = "".join(lines[:keep_lines])
+                    chunks.append((f, src))
+                    total += count_tokens(src)
+                    break
+                continue
             chunks.append((f, src))
             total += t
-            if total >= target_tokens - 64:
+            if total >= limit * 0.9:
                 break
         # candidate questions: functions with defaults / parameter counts
         cands = []
