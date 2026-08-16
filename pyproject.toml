@@ -53,6 +53,7 @@ ignore = [
     "E741",   # ambiguous names: attention math uses q/k/v/l idioms
     "RUF012", # mutable class attrs used deliberately in configs
     "B905",   # zip strict — noisy
+    "RUF001", "RUF002", "RUF003",  # unicode math symbols in docstrings/comments are intentional
 ]
 
 [tool.ruff.lint.per-file-ignores]
