@@ -20,7 +20,7 @@ import torch
 from kvrl.cache.view import CacheState, KVCacheView
 from kvrl.controllers.base import KVCacheController
 from kvrl.models.hf_model import HFCausalLM
-from kvrl.utils.device import PeakTracker, memory_stats, synchronize
+from kvrl.utils.device import PeakTracker, empty_cache, memory_stats, synchronize
 
 
 @dataclass
@@ -76,6 +76,7 @@ class InferenceEngine:
         decide_every: int = 64,
         n_sink: int = 4,
         check_finite: bool = False,
+        mps_release_every: int = 8,
     ):
         self.model = model
         self.chunk_size = chunk_size
@@ -83,6 +84,11 @@ class InferenceEngine:
         self.n_sink = n_sink
         self.check_finite = check_finite
         self.device = model.device
+        # On MPS the caching allocator keeps every freed attention/score buffer of every chunk
+        # size: after an 8K chunked prefill it held 7.7 GB *reserved* (allocated 0.9 GB) on an
+        # 8 GB machine, the OS swapped and decode crawled to ~1 s/token (measured 2026-08-16).
+        # Releasing the pool every N chunks and before decode keeps the working set resident.
+        self.mps_release_every = mps_release_every if self.device.type == "mps" else 0
 
     def _sync_time(self) -> float:
         synchronize(self.device)
@@ -212,9 +218,16 @@ class InferenceEngine:
                     raise FloatingPointError("non-finite logits during prefill")
                 timings["prefill_s"] += self._sync_time() - t_start
                 decide(n_new=q, phase=0, ctx_len=pos)
+                if (
+                    self.mps_release_every
+                    and (s // self.chunk_size + 1) % self.mps_release_every == 0
+                ):
+                    empty_cache(self.device)
                 t_start = self._sync_time()
                 peak_mem.sample()
             timings["prefill_s"] += self._sync_time() - t_start
+            if self.mps_release_every:
+                empty_cache(self.device)  # release the prefill pool before decode
             assert logits is not None
             # ---------------------------------------------------------------- decode
             t_start = self._sync_time()

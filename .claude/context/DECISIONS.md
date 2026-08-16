@@ -55,3 +55,10 @@ H2O in 16K steps.
 Decision: `sim.layer_max_reward: true` by default; `rl.init_from: checkpoints/regressor_v1.pt`
 warm start by default; the from-scratch/layer-mean runs remain as recorded ablations.
 Consequences: reward scale recalibrated (r_scale from Amax); features unchanged.
+
+## D-010 (2026-08-16) — Release the MPS allocator pool during chunked prefill
+Context: BUG-003 — reserved memory balloons to 7.7 GB after an 8K chunked prefill on MPS;
+the machine swaps and decode crawls (1.2 s/token) although only 0.9 GB is allocated.
+Decision: `InferenceEngine` calls `empty_cache()` every 8 prefill chunks and before decode on
+MPS (no-op elsewhere). Measured: 8K full-cache decode 1185 → 57 ms/token, prefill unchanged.
+Consequences: benchmark re-run (bench run 3) supersedes earlier 8K/16K full-cache numbers.
