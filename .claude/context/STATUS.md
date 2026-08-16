@@ -1,6 +1,6 @@
 # STATUS  (update after every significant piece of work)
 
-_Last updated: 2026-08-16 06:20 (all phases have a working v1; final re-benchmark running; docs complete)_
+_Last updated: 2026-08-16 07:50 — v1 complete: all phases delivered; dashboard live at sunkalpchandra.github.io/kvrl (static snapshot); CI green_
 
 ## Works right now (all verified by tests or real runs)
 - **Model stack**: `kvrl.models` — Qwen2.5-0.5B-Instruct on MPS fp16 (also CPU/CUDA), registered
@@ -37,9 +37,13 @@ _Last updated: 2026-08-16 06:20 (all phases have a working v1; final re-benchmar
   up to 8K full cache, memory cliff at 16K (1.7 s/tok, swap); stats-path controllers ~1.5–2×
   prefill vs plain; controller overhead ≤2% of model time.
 
+- Benchmark v3 (E-011, after the MPS pool-release fix D-010/BUG-003): 8K full-cache decode
+  58 ms/tok (was 1.7–1.8 s), prefill 14 s (was 58–65 s); curve 28→88 ms/tok 512→8K, 1.09 s/tok
+  at 16K (machine cliff).
+
 ## In progress
-- Re-benchmark with the optimised decode loop (perf commit) → regenerate docs/results.md.
-- Dashboard static snapshot export after a demo run.
+- Nothing running. Next steps in TODO.md (ablations with warm-start protocol, needle-aware
+  reward, E-proxy rows for rl, CUDA validation).
 
 ## Measured facts to remember
 - MPS fp16 vs bf16: 2.6× faster (D-004). enable_gqa vs repeat_kv: 4–25× faster attention on MPS.
