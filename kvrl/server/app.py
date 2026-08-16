@@ -156,6 +156,39 @@ def pareto(run_id: str | None = None):
     }
 
 
+@app.get("/api/bench")
+def bench_latest(run_id: str | None = None):
+    """Latest benchmark run: per (context, controller, budget) medians + decode-vs-cache curve."""
+    runs_ = [
+        r
+        for r in list_runs(_runs_dir(), kind="bench")
+        if (Path(r["dir"]) / "bench.parquet").exists()
+    ]
+    if run_id:
+        runs_ = [r for r in runs_ if r["meta"]["run_id"] == run_id]
+    if not runs_:
+        return {"run_id": None, "rows": [], "decode_curve": []}
+    import pandas as pd
+
+    r = runs_[-1]
+    df = pd.read_parquet(Path(r["dir"]) / "bench.parquet")
+    curve = (r.get("results") or {}).get("decode_curve", [])
+    return {
+        "run_id": r["meta"]["run_id"],
+        "rows": json.loads(df.to_json(orient="records")),
+        "decode_curve": curve,
+        "meta": {k: r["meta"].get(k) for k in ("created_at", "commit", "device_info")},
+    }
+
+
+@app.get("/api/demo/snapshot")
+def demo_snapshot():
+    p = _runs_dir() / "demo_latest.json"
+    if not p.exists():
+        raise HTTPException(404, "no demo run yet")
+    return json.loads(p.read_text())
+
+
 @app.get("/api/checkpoints")
 def checkpoints():
     import torch
@@ -325,6 +358,11 @@ def _run_demo(req: DemoRequest, emit=None) -> dict:
                     "n_evicted": res.n_evicted_total,
                 }
             )
+    try:
+        _runs_dir().mkdir(parents=True, exist_ok=True)
+        (_runs_dir() / "demo_latest.json").write_text(json.dumps(out, default=str))
+    except OSError:
+        pass
     return out
 
 
