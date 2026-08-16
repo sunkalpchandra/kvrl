@@ -152,7 +152,14 @@ def decode_vs_cache_length(
     for L in lengths:
         ids = make_prompt(model, L)
         cache = model.new_cache()
-        model.forward_chunk(ids, torch.arange(L), cache)
+        # chunked prefill (a one-shot 16K forward materialises a ~7 GB score matrix on MPS
+        # and swaps; that would contaminate the decode measurement) + pool release
+        for s in range(0, L, 256):
+            ch = ids[s : s + 256]
+            model.forward_chunk(ch, torch.arange(s, s + ch.numel()), cache)
+            if model.device.type == "mps" and (s // 256) % 8 == 7:
+                empty_cache(model.device)
+        empty_cache(model.device)
         tok = ids[-1:]
         s = Samples()
         for r in range(repeats + 1):
