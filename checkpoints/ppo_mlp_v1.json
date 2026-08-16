@@ -1,0 +1,43 @@
+{
+ "run_id": "20260816-032826-train-d115d477aa",
+ "update": 32,
+ "steps": 33405,
+ "val_lost_mass_decode": 0.10111077626546223,
+ "r_scale": 0.5352584914792151,
+ "kind": "rl",
+ "policy_kwargs": {
+  "n_tok": 18,
+  "n_glob": 8,
+  "arch": "mlp",
+  "hidden": 128
+ },
+ "feature_cfg": {
+  "ema_fast": 0.5,
+  "ema_slow": 0.9,
+  "hit_top_frac": 0.05,
+  "k_norm_mean": 41.96355438232422,
+  "k_norm_std": 1.0135095119476318,
+  "v_norm_mean": 5.736070156097412,
+  "v_norm_std": 0.836938738822937,
+  "token_features": [
+   "age_log",
+   "rel_pos",
+   "pos_log",
+   "is_generated",
+   "attn_last",
+   "attn_ema_fast",
+   "attn_ema_slow",
+   "attn_mean",
+   "attn_max",
+   "attn_lastmax_layer",
+   "attn_disp",
+   "hit_rate",
+   "since_hit",
+   "chunk_share",
+   "key_norm",
+   "value_norm",
+   "adj_key_cos",
+   "nbr_evicted"
+  ]
+ }
+}
