@@ -17,14 +17,13 @@ eval:
   controllers:
     - {name: full}
     - {name: window}
-    - {name: random}
     - {name: snapkv}
     - {name: h2o}
     - {name: keynorm}
     - {name: regressor, checkpoint: checkpoints/regressor_v1.pt}
     - {name: rl, checkpoint: checkpoints/ppo_mlp_v1.pt, label: rl_v1}
-    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1_2.pt, label: rl}
-  jobs:                       # 42 prompts × (1 full + 3 budgets × 8 controllers) = 1100 real runs
+    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1_3.pt, label: rl}
+  jobs:                       # 42 prompts × (1 full + 3 budgets × 7 controllers) = 924 real runs (random dropped: 0 everywhere in E-007)
     - {task: needle,     tokens: 2048, n: 8}
     - {task: kv,         tokens: 2048, n: 8}
     - {task: multihop,   tokens: 2048, n: 8}

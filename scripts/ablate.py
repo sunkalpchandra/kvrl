@@ -58,6 +58,7 @@ ABLATIONS = {
         "no_crit_penalty": {"sim": {"lambda_crit": 0.0}},
         "no_task_term": {"sim": {"lambda_task": 0.0}},
         "no_privileged_critic": {"rl": {"privileged_critic": False}},
+        "shared_advantage": {"rl": {"advantage_mode": "shared"}},
     },
     "sampler": {
         "per_slot": {"rl": {"ratio_mode": "per_slot"}},
