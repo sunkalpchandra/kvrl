@@ -75,8 +75,9 @@ def parse_override(s: str) -> tuple[str, Any]:
     return k.strip(), parse_scalar(v)
 
 
-def load_config(path: str | Path | None, overrides: list[str] | None = None,
-                defaults: dict | None = None) -> dict[str, Any]:
+def load_config(
+    path: str | Path | None, overrides: list[str] | None = None, defaults: dict | None = None
+) -> dict[str, Any]:
     """Load ``path`` (optional) on top of ``defaults`` (optional) then apply overrides.
 
     A config may declare ``_base: other.yaml`` (relative to itself) to inherit.

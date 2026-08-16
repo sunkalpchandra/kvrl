@@ -176,9 +176,15 @@ def pick_dtype(device: torch.device | str, requested: str | None = None) -> torc
     """Map a config dtype string to a torch dtype that works on ``device``."""
     dev = torch.device(device)
     name = (requested or "auto").lower()
-    table = {"float32": torch.float32, "fp32": torch.float32, "float16": torch.float16,
-             "fp16": torch.float16, "half": torch.float16, "bfloat16": torch.bfloat16,
-             "bf16": torch.bfloat16}
+    table = {
+        "float32": torch.float32,
+        "fp32": torch.float32,
+        "float16": torch.float16,
+        "fp16": torch.float16,
+        "half": torch.float16,
+        "bfloat16": torch.bfloat16,
+        "bf16": torch.bfloat16,
+    }
     if name in table:
         dt = table[name]
         if dt is torch.bfloat16 and not supports_bf16(dev):

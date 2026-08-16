@@ -148,6 +148,7 @@ class InferenceEngine:
             )
             if on_state is not None:
                 on_state(state)
+            controller.observe(state, budget)
             if n_before <= budget:
                 # nothing to evict; controllers with per-slot memory still see the state
                 controller.on_compact(torch.arange(n_before), n_before)

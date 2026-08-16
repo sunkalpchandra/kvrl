@@ -35,10 +35,14 @@ RUNS_DIR = Path(os.environ.get("KVRL_RUNS_DIR", "runs"))
 def git_info(repo_root: Path | None = None) -> dict[str, Any]:
     root = repo_root or Path(__file__).resolve().parents[2]
     try:
-        commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True,
-                                         stderr=subprocess.DEVNULL).strip()
-        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root,
-                                             text=True, stderr=subprocess.DEVNULL).strip())
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+        dirty = bool(
+            subprocess.check_output(
+                ["git", "status", "--porcelain"], cwd=root, text=True, stderr=subprocess.DEVNULL
+            ).strip()
+        )
         return {"commit": commit, "dirty": dirty}
     except Exception:
         return {"commit": None, "dirty": None}

@@ -39,6 +39,9 @@ class KVCacheController(ABC):
     def reset(self, **episode_info) -> None:  # noqa: B027 - optional hook
         """Called at the start of every prompt/episode."""
 
+    def observe(self, state: CacheState, budget: int) -> None:  # noqa: B027
+        """Called on EVERY decision step (also when nothing must be evicted), before decide."""
+
     @abstractmethod
     def decide(self, state: CacheState, budget: int) -> torch.Tensor: ...
 

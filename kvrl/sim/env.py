@@ -267,6 +267,17 @@ class CacheSimEnv:
         assert self._pending_state is not None
         return torch.from_numpy(self.F[self.k, self.alive].astype(np.float32))
 
+    def privileged(self) -> torch.Tensor:
+        """Critic-only sim features: committed future loss of past evictions, retained future
+        mass, fraction of critical tokens retained (all at the current step)."""
+        assert self._pending_state is not None
+        k = self.k
+        committed = float(self.F[k, self.evicted[: self.F.shape[1]]].sum())
+        retained = float(self.F[k, self.alive].sum())
+        crit = self.trace.critical_mask if self.trace is not None else None
+        cr = float(crit[self.alive].sum() / crit.sum()) if crit is not None and crit.any() else 1.0
+        return torch.tensor([committed, retained, cr], dtype=torch.float32)
+
     def metrics(self) -> dict:
         tr = self.trace
         assert tr is not None
@@ -298,6 +309,7 @@ def run_controller_episode(
     )
     while not res.done:
         st = env.state
+        controller.observe(st, env.budget)
         keep = controller.decide(st, env.budget)
         controller.on_compact(keep, st.n)
         res = env.step(env.keep_to_evict(keep))
