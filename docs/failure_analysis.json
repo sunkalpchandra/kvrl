@@ -1,0 +1,170 @@
+{
+ "summary": [
+  {
+   "controller": "oracle",
+   "lost": 0.08217287361621857,
+   "crit_q": 0.6909677507300598,
+   "crit_d": 0.6909677507300598,
+   "age": 12.998074609459579
+  },
+  {
+   "controller": "rl",
+   "lost": 0.10923809707164764,
+   "crit_q": 0.49279524160678656,
+   "crit_d": 0.49279524160678656,
+   "age": 11.746323423268784
+  },
+  {
+   "controller": "regressor",
+   "lost": 0.11529127061367035,
+   "crit_q": 0.14077081819017304,
+   "crit_d": 0.14077081819017304,
+   "age": 13.956440930955683
+  },
+  {
+   "controller": "snapkv",
+   "lost": 0.11892876327037812,
+   "crit_q": 0.08387809134837998,
+   "crit_d": 0.08387809134837998,
+   "age": 14.469312809848612
+  },
+  {
+   "controller": "h2o",
+   "lost": 0.12199272215366364,
+   "crit_q": 0.33935812348376015,
+   "crit_d": 0.33935812348376015,
+   "age": 10.714265326335445
+  },
+  {
+   "controller": "keynorm",
+   "lost": 0.14737911522388458,
+   "crit_q": 0.7264955286177697,
+   "crit_d": 0.7264955286177697,
+   "age": 5.546363319867189
+  },
+  {
+   "controller": "window",
+   "lost": 0.15023127496242522,
+   "crit_q": 0.025806451612903226,
+   "crit_d": 0.025806451612903226,
+   "age": 15.948605753570751
+  },
+  {
+   "controller": "random",
+   "lost": 0.1641422003507614,
+   "crit_q": 0.11314307587652239,
+   "crit_d": 0.11314307587652239,
+   "age": 13.463008286926549
+  }
+ ],
+ "permutation": [
+  {
+   "feature": "key_norm",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.1237870380282402,
+   "delta": 0.016506478190422058
+  },
+  {
+   "feature": "attn_mean",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.11200784146785736,
+   "delta": 0.004727281630039215
+  },
+  {
+   "feature": "attn_lastmax_layer",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.11047673225402832,
+   "delta": 0.0031961724162101746
+  },
+  {
+   "feature": "since_hit",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10872285813093185,
+   "delta": 0.0014422982931137085
+  },
+  {
+   "feature": "hit_rate",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10859423875808716,
+   "delta": 0.0013136789202690125
+  },
+  {
+   "feature": "attn_max",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10833188891410828,
+   "delta": 0.0010513290762901306
+  },
+  {
+   "feature": "attn_ema_slow",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10830873250961304,
+   "delta": 0.0010281726717948914
+  },
+  {
+   "feature": "attn_last",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10821826010942459,
+   "delta": 0.0009377002716064453
+  },
+  {
+   "feature": "nbr_evicted",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10809232294559479,
+   "delta": 0.0008117631077766418
+  },
+  {
+   "feature": "attn_ema_fast",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10792899131774902,
+   "delta": 0.0006484314799308777
+  },
+  {
+   "feature": "pos_log",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10745947062969208,
+   "delta": 0.00017891079187393188
+  },
+  {
+   "feature": "adj_key_cos",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10731744021177292,
+   "delta": 3.688037395477295e-05
+  },
+  {
+   "feature": "attn_disp",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10730869323015213,
+   "delta": 2.8133392333984375e-05
+  },
+  {
+   "feature": "is_generated",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10728055983781815,
+   "delta": 0.0
+  },
+  {
+   "feature": "chunk_share",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10711298137903214,
+   "delta": -0.00016757845878601074
+  },
+  {
+   "feature": "age_log",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.1070539653301239,
+   "delta": -0.00022659450769424438
+  },
+  {
+   "feature": "rel_pos",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10695065557956696,
+   "delta": -0.0003299042582511902
+  },
+  {
+   "feature": "value_norm",
+   "lost_mass_base": 0.10728055983781815,
+   "lost_mass_permuted": 0.10520876944065094,
+   "delta": -0.002071790397167206
+  }
+ ]
+}

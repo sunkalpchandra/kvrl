@@ -17,6 +17,7 @@ uvicorn>=0.27
 pydantic>=2.0
 # Plots
 matplotlib>=3.8
+tabulate>=0.9
 # Dev
 pytest>=8.0
 ruff>=0.4
