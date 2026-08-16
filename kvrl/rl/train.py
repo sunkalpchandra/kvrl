@@ -108,13 +108,15 @@ def evaluate(
     import pandas as pd
 
     df = pd.DataFrame(rows)
-    summary = (
-        df.groupby(["controller", "budget_frac"])[
-            ["lost_mass_decode", "lost_mass_mean", "crit_retained", "total_reward"]
-        ]
-        .mean()
-        .reset_index()
-    )
+    cols = [
+        "lost_mass_decode",
+        "lost_lmax_decode",
+        "lost_vw_decode",
+        "lost_mass_mean",
+        "crit_retained",
+        "total_reward",
+    ]
+    summary = df.groupby(["controller", "budget_frac"])[cols].mean().reset_index()
     return {"rows": rows, "summary": summary.to_dict(orient="records")}
 
 
@@ -293,14 +295,13 @@ def train(cfg: dict, run: Run, log=print) -> dict:
                     seed=seed,
                 )
                 summ = {(r["controller"], r["budget_frac"]): r for r in ev_res["summary"]}
+                sel = (
+                    "lost_lmax_decode"
+                    if env_kwargs.get("use_layer_max_reward")
+                    else "lost_mass_decode"
+                )
                 rl_lost = float(
-                    np.mean(
-                        [
-                            r["lost_mass_decode"]
-                            for r in ev_res["summary"]
-                            if r["controller"] == "rl"
-                        ]
-                    )
+                    np.mean([r[sel] for r in ev_res["summary"] if r["controller"] == "rl"])
                 )
                 run.log(step=steps_done, eval=ev_res["summary"])
                 line = " | ".join(
