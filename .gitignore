@@ -17,6 +17,7 @@ data/raw/
 data/processed/
 data/features/
 data/eval/
+data/corpus/
 data/*.parquet
 data/*.h5
 data/*.npz
