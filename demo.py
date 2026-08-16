@@ -65,7 +65,7 @@ def main(argv=None) -> int:
         default="auto",
         help="rl|h2o|window|snapkv|random|keynorm|auto (rl if a checkpoint exists)",
     )
-    ap.add_argument("--checkpoint", default="checkpoints/ppo_mlp_v1.pt")
+    ap.add_argument("--checkpoint", default="checkpoints/ppo_mlp_v1_3.pt")
     ap.add_argument("--file", default=None, help="use this text file as the context")
     ap.add_argument("--question", default=None, help="question to ask about --file")
     ap.add_argument("--max-new-tokens", type=int, default=24)

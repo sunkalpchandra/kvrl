@@ -217,7 +217,7 @@ class DemoRequest(BaseModel):
     tokens: int = 2048
     budget_frac: float = 0.25
     controller: str = "rl"
-    checkpoint: str = "checkpoints/ppo_mlp_v1.pt"
+    checkpoint: str = "checkpoints/ppo_mlp_v1_3.pt"
     max_new_tokens: int = 16
     seed: int = 7
     model: str = "qwen2.5-0.5b-instruct"
@@ -381,7 +381,7 @@ async def demo_stream(
     tokens: int = 2048,
     budget_frac: float = 0.25,
     controller: str = "rl",
-    checkpoint: str = "checkpoints/ppo_mlp_v1.pt",
+    checkpoint: str = "checkpoints/ppo_mlp_v1_3.pt",
     max_new_tokens: int = 16,
     seed: int = 7,
     model: str = Query("qwen2.5-0.5b-instruct"),

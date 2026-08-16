@@ -10,7 +10,7 @@ eval:
     - {name: window}
     - {name: h2o}
     - {name: snapkv}
-    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1.pt}
+    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1_3.pt}
   jobs:
     - {task: needle,   tokens: 8192,  n: 3}
     - {task: kv,       tokens: 8192,  n: 2}
