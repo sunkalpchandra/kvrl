@@ -10,7 +10,7 @@ export type ParetoPoint = {
 export type Pareto = { run_id: string | null; points: ParetoPoint[]; by_task?: any[]; meta?: any };
 export type RunSummary = { run_id: string; kind: string; created_at: string; status: string; commit: string; device?: string; duration_s?: number };
 export type Decision = { step: number; phase: number; ctx_len: number; n_before: number; n_after: number; n_evicted: number; evicted_positions: number[]; controller_ms: number; compact_ms: number; importance: number[] | null };
-export type DemoRun = { text: string; correct: boolean | null; kv_bytes_peak: number; kv_bytes_final: number; kv_bytes_full: number; peak_cache_len: number; final_cache_len: number; n_evicted: number; timings: Record<string, number>; memory: Record<string, number>; alive: boolean[]; decisions: Decision[]; stats_enabled: boolean; controller?: any };
+export type DemoRun = { text: string; generated_ids?: number[]; correct: boolean | null; kv_bytes_peak: number; kv_bytes_final: number; kv_bytes_full: number; peak_cache_len: number; final_cache_len: number; n_evicted: number; timings: Record<string, number>; memory: Record<string, number>; alive: boolean[]; decisions: Decision[]; stats_enabled: boolean; controller?: any };
 export type DemoResult = { n_prompt: number; budget: number; answers: string[]; critical_tokens: number[]; tokens: string[]; model: string; device: string; kv_bytes_per_token: number; runs: Record<string, DemoRun> };
 
 let staticMode: boolean | null = null;
