@@ -89,3 +89,12 @@ def test_stopwatch_and_samples():
         s.add(v)
     summ = s.summary()
     assert summ["median"] == 2.5 and summ["min"] == 1.0 and summ["n"] == 4
+
+
+def test_decode_cost_model_fit():
+    from kvrl.bench.cost_model import fit_decode_cost
+
+    curve = [{"cache_len": 1024 * k, "decode_ms_per_tok_median": 10 + 2 * k} for k in range(1, 6)]
+    m = fit_decode_cost(curve, device="test")
+    assert abs(m.ms_per_token_base - 10) < 1e-6 and abs(m.ms_per_token_per_1k - 2) < 1e-6
+    assert m.r2 > 0.999 and abs(m.decode_ms(2048) - 14) < 1e-6

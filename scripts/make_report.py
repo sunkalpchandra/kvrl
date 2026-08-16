@@ -89,24 +89,33 @@ def pareto_figures(run) -> list[str]:
             f"| {r.controller} | {r.budget} | {r.n} | {r.accuracy:.3f} | {r.nll:.3f} | {r.fidelity:.3f} | "
             f"{r.kv_peak:.0%} | {r.model_s:.2f} | {r.ctrl_s:.3f} | {r.compact_s:.3f} |"
         )
-    # figure: accuracy & nll vs kv%
-    fig, axes = plt.subplots(1, 3, figsize=(12, 3.4))
+    # figure: accuracy / nll / fidelity vs kv%, and accuracy vs MEASURED total latency
+    med_lat = df.groupby(["controller", "budget_frac"])["total_s"].median()
+    t["total_s"] = [
+        med_lat.get((r.controller, 1.0 if r.controller == "full" else float(r.budget.rstrip("%")) / 100), float("nan"))
+        for _, r in t.iterrows()
+    ]
+    fig, axes = plt.subplots(1, 4, figsize=(15, 3.4))
     for c, gg in t.groupby("controller"):
         gg = gg.sort_values("kv_peak")
         kw = dict(color=COLORS.get(c, None), marker="o", label=c, ms=4)
         axes[0].plot(gg.kv_peak, gg.accuracy, **kw)
         axes[1].plot(gg.kv_peak, gg.nll, **kw)
         axes[2].plot(gg.kv_peak, gg.fidelity, **kw)
+        axes[3].plot(gg.total_s, gg.accuracy, **kw)
     for ax, yl in zip(
-        axes, ["task accuracy", "NLL (natural continuation)", "fidelity vs full (ROUGE-L)"]
+        axes[:3], ["task accuracy", "NLL (natural continuation)", "fidelity vs full (ROUGE-L)"]
     ):
         ax.set_xlabel("peak KV memory (fraction of full)")
         ax.set_ylabel(yl)
         ax.set_xlim(0, 1.05)
+    axes[3].set_xlabel("measured total latency / prompt (s, median incl. controller + cache ops)")
+    axes[3].set_ylabel("task accuracy")
     axes[0].set_ylim(0, 1.02)
     axes[2].set_ylim(0, 1.02)
+    axes[3].set_ylim(0, 1.02)
     axes[0].legend(fontsize=7, frameon=False)
-    fig.suptitle("Quality vs KV memory (real model, all tasks pooled)", fontsize=10)
+    fig.suptitle("Quality vs KV memory and vs measured latency (real model, all tasks pooled)", fontsize=10)
     fig.tight_layout()
     fig.savefig(FIG / "pareto.png")
     plt.close(fig)
@@ -191,6 +200,13 @@ def bench_figures(run) -> list[str]:
         fig.tight_layout()
         fig.savefig(FIG / "decode_curve.png")
         plt.close(fig)
+        try:
+            from kvrl.bench.cost_model import fit_decode_cost
+
+            cm = fit_decode_cost(curve, device=str(run["meta"].get("device_info", {}).get("gpu", "")))
+            lines.append(f"\nFitted decode cost model: {cm.ms_per_token_base:.2f} ms/token + {cm.ms_per_token_per_1k:.3f} ms per 1K cached tokens (R² = {cm.r2:.3f}, {cm.n_points} points).\n")
+        except Exception as e:
+            lines.append(f"\n_cost model fit failed: {e!r}_\n")
         lines.append("\n#### Decode cost vs cache length (full cache)\n")
         lines.append("| cache length | decode ms/tok (median) | IQR |")
         lines.append("|---|---|---|")
