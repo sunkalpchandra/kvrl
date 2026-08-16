@@ -108,7 +108,7 @@
 | 8192 | rl | 25% | 23.77 | 61.7 | 0.565 | 0.535 | 26% | 976 |
 | 8192 | window | 25% | 10.71 | 32.2 | 0.025 | 0.383 | 26% | 974 |
 
-Fitted decode cost model: 31.80 ms/token + 2.485 ms per 1K cached tokens (R² = 0.339, 5 points).
+Fitted decode cost model (pre-cliff points): 31.80 ms/token + 2.485 ms per 1K cached tokens (R² = 0.339, 5 points; excluded beyond the memory cliff: [16384]).
 
 
 #### Decode cost vs cache length (full cache)

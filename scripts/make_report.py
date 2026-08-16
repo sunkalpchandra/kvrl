@@ -211,8 +211,10 @@ def bench_figures(run) -> list[str]:
             cm = fit_decode_cost(
                 curve, device=str(run["meta"].get("device_info", {}).get("gpu", ""))
             )
+            excl = f"; excluded beyond the memory cliff: {cm.excluded}" if cm.excluded else ""
             lines.append(
-                f"\nFitted decode cost model: {cm.ms_per_token_base:.2f} ms/token + {cm.ms_per_token_per_1k:.3f} ms per 1K cached tokens (R² = {cm.r2:.3f}, {cm.n_points} points).\n"
+                f"\nFitted decode cost model (pre-cliff points): {cm.ms_per_token_base:.2f} ms/token + "
+                f"{cm.ms_per_token_per_1k:.3f} ms per 1K cached tokens (R² = {cm.r2:.3f}, {cm.n_points} points{excl}).\n"
             )
         except Exception as e:
             lines.append(f"\n_cost model fit failed: {e!r}_\n")
