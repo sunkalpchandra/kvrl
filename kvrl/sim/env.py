@@ -120,6 +120,7 @@ class CacheSimEnv:
         self.lost_vw = []  # value-norm-weighted variant (fraction)
         self._vnorm = trace.value_norm.astype(np.float32)
         self.crit_retained = []  # per decode step
+        self.answer_retained = []  # per decode step (answer tokens only)
         self.n_evictions = 0
         self.crit_evicted_total = 0.0
         self._cum_mean = np.zeros(0, dtype=np.float32)
@@ -196,6 +197,9 @@ class CacheSimEnv:
             if st.phase == 1 and self.trace is not None and self.trace.critical_mask.any():
                 crit = self.trace.critical_mask
                 self.crit_retained.append(float(crit[self.alive].sum() / crit.sum()))
+                am = getattr(self.trace, "answer_mask", None)
+                if am is not None and am.any():
+                    self.answer_retained.append(float(am[self.alive].sum() / am.sum()))
             n = st.n
             m = max(0, n - self.budget)
             if m == 0:
@@ -322,6 +326,9 @@ class CacheSimEnv:
             "final_cache": int(self.alive.shape[0]),
             "crit_retained": float(np.mean(self.crit_retained))
             if self.crit_retained
+            else float("nan"),
+            "answer_retained": float(np.mean(self.answer_retained))
+            if self.answer_retained
             else float("nan"),
         }
         return out
