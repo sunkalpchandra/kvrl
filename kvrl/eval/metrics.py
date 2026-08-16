@@ -76,22 +76,29 @@ def bootstrap_ci(
 
 
 def paired_difference(
-    a: Sequence[float], b: Sequence[float], n_boot: int = 2000, seed: int = 0
+    a: Sequence[float],
+    b: Sequence[float],
+    n_boot: int = 2000,
+    seed: int = 0,
+    lower_is_better: bool = False,
 ) -> dict:
-    """Paired comparison a - b over the same prompts: mean diff, CI, win rate."""
+    """Paired comparison a - b over the same prompts: mean diff, CI, and how often *a is
+    better* than b (``a_better_rate``, honouring ``lower_is_better``)."""
     a_, b_ = np.asarray(a, float), np.asarray(b, float)
     if a_.shape != b_.shape:
         raise ValueError("paired arrays must have the same shape")
     d = a_ - b_
     mean, lo, hi = bootstrap_ci(d, n_boot=n_boot, seed=seed)
+    better = (d < 0) if lower_is_better else (d > 0)
     return {
         "mean_diff": mean,
         "ci_lo": lo,
         "ci_hi": hi,
-        "win_rate": float(np.mean(d > 0)) if d.size else math.nan,
+        "a_better_rate": float(np.mean(better)) if d.size else math.nan,
         "tie_rate": float(np.mean(d == 0)) if d.size else math.nan,
         "n": int(d.size),
         "significant": bool(d.size and (lo > 0 or hi < 0)),
+        "lower_is_better": lower_is_better,
     }
 
 

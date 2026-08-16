@@ -30,7 +30,9 @@ def test_bootstrap_and_paired():
     assert lo <= m <= hi and abs(m - 2.5) < 1e-9
     assert math.isnan(bootstrap_ci([])[0])
     res = paired_difference([1, 1, 1, 1, 1], [0, 0, 0, 0, 0], n_boot=200)
-    assert res["mean_diff"] == 1.0 and res["win_rate"] == 1.0 and res["significant"]
+    assert res["mean_diff"] == 1.0 and res["a_better_rate"] == 1.0 and res["significant"]
+    res_l = paired_difference([1, 1, 1, 1, 1], [0, 0, 0, 0, 0], n_boot=200, lower_is_better=True)
+    assert res_l["a_better_rate"] == 0.0 and res_l["significant"]
     res2 = paired_difference([1, 0, 1, 0], [0, 1, 0, 1], n_boot=200)
     assert not res2["significant"]
     s = summarize([0.5, 0.7])

@@ -92,7 +92,10 @@ def pareto_figures(run) -> list[str]:
     # figure: accuracy / nll / fidelity vs kv%, and accuracy vs MEASURED total latency
     med_lat = df.groupby(["controller", "budget_frac"])["total_s"].median()
     t["total_s"] = [
-        med_lat.get((r.controller, 1.0 if r.controller == "full" else float(r.budget.rstrip("%")) / 100), float("nan"))
+        med_lat.get(
+            (r.controller, 1.0 if r.controller == "full" else float(r.budget.rstrip("%")) / 100),
+            float("nan"),
+        )
         for _, r in t.iterrows()
     ]
     fig, axes = plt.subplots(1, 4, figsize=(15, 3.4))
@@ -115,7 +118,9 @@ def pareto_figures(run) -> list[str]:
     axes[2].set_ylim(0, 1.02)
     axes[3].set_ylim(0, 1.02)
     axes[0].legend(fontsize=7, frameon=False)
-    fig.suptitle("Quality vs KV memory and vs measured latency (real model, all tasks pooled)", fontsize=10)
+    fig.suptitle(
+        "Quality vs KV memory and vs measured latency (real model, all tasks pooled)", fontsize=10
+    )
     fig.tight_layout()
     fig.savefig(FIG / "pareto.png")
     plt.close(fig)
@@ -150,7 +155,7 @@ def pareto_figures(run) -> list[str]:
         for p in paired:
             lines.append(
                 f"| {p['controller']} | {p['budget_frac']:.0%} | {p['vs']} | {p['metric']} | {p['mean_diff']:+.4f} | "
-                f"[{p['ci_lo']:+.4f}, {p['ci_hi']:+.4f}] | {p['win_rate']:.2f} | {p['n']} | {'yes' if p['significant'] else 'no'} |"
+                f"[{p['ci_lo']:+.4f}, {p['ci_hi']:+.4f}] | {p.get('a_better_rate', p.get('win_rate', float('nan'))):.0%} | {p['n']} | {'yes' if p['significant'] else 'no'} |"
             )
     return lines
 
@@ -203,8 +208,12 @@ def bench_figures(run) -> list[str]:
         try:
             from kvrl.bench.cost_model import fit_decode_cost
 
-            cm = fit_decode_cost(curve, device=str(run["meta"].get("device_info", {}).get("gpu", "")))
-            lines.append(f"\nFitted decode cost model: {cm.ms_per_token_base:.2f} ms/token + {cm.ms_per_token_per_1k:.3f} ms per 1K cached tokens (R² = {cm.r2:.3f}, {cm.n_points} points).\n")
+            cm = fit_decode_cost(
+                curve, device=str(run["meta"].get("device_info", {}).get("gpu", ""))
+            )
+            lines.append(
+                f"\nFitted decode cost model: {cm.ms_per_token_base:.2f} ms/token + {cm.ms_per_token_per_1k:.3f} ms per 1K cached tokens (R² = {cm.r2:.3f}, {cm.n_points} points).\n"
+            )
         except Exception as e:
             lines.append(f"\n_cost model fit failed: {e!r}_\n")
         lines.append("\n#### Decode cost vs cache length (full cache)\n")

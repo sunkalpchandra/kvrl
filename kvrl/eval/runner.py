@@ -211,7 +211,9 @@ def summarize_results(df: pd.DataFrame) -> dict:
                         "budget_frac": b,
                         "vs": c,
                         "metric": "nll",
-                        **paired_difference(a["nll"].tolist(), bb["nll"].tolist()),
+                        **paired_difference(
+                            a["nll"].tolist(), bb["nll"].tolist(), lower_is_better=True
+                        ),
                     }
                 )
                 acc_a, acc_b = a["correct"].dropna(), bb["correct"].dropna()
