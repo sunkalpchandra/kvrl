@@ -203,16 +203,26 @@ def pareto_figures(run) -> list[str]:
     # paired comparisons
     paired = (run.get("results") or {}).get("paired", [])
     if paired:
-        lines.append("\n#### Paired comparisons (per prompt, bootstrap 95% CI)\n")
-        lines.append(
-            "| controller | budget | vs | metric | mean diff (ctrl − vs) | 95% CI | ctrl better on | n | significant |"
-        )
-        lines.append("|---|---|---|---|---|---|---|---|---|")
-        for p in paired:
-            lines.append(
-                f"| {p['controller']} | {p['budget_frac']:.0%} | {p['vs']} | {p['metric']} | {p['mean_diff']:+.4f} | "
-                f"[{p['ci_lo']:+.4f}, {p['ci_hi']:+.4f}] | {p.get('a_better_rate', p.get('win_rate', float('nan'))):.0%} | {p['n']} | {'yes' if p['significant'] else 'no'} |"
-            )
+        lines.append("\n#### Paired comparisons of the learned controllers (per prompt, bootstrap 95% CI; * = CI excludes 0)\n")
+        lines.append("Cells: mean difference (learned − opponent) [95% CI]; accuracy and fidelity on graded tasks, NLL on lm (lower is better).\n")
+        learned = sorted({p["controller"] for p in paired if str(p["controller"]).startswith("rl")})
+        metrics = [("accuracy", 0.25), ("accuracy", 0.5), ("fidelity", 0.25), ("fidelity", 0.5), ("nll_lm", 0.25), ("nll_lm", 0.5)]
+        head = "| learned | vs | " + " | ".join(f"{m} @{int(b * 100)}%" for m, b in metrics) + " |"
+        lines.append(head)
+        lines.append("|" + "---|" * (2 + len(metrics)))
+        for lc in learned:
+            opps = sorted({p["vs"] for p in paired if p["controller"] == lc})
+            for vs in opps:
+                cells = []
+                for m, b in metrics:
+                    hit = [p for p in paired if p["controller"] == lc and p["vs"] == vs and p["metric"] == m and abs(p["budget_frac"] - b) < 1e-9]
+                    if hit:
+                        q = hit[0]
+                        cells.append(f"{q['mean_diff']:+.3f} [{q['ci_lo']:+.2f},{q['ci_hi']:+.2f}]{'*' if q['significant'] else ''}")
+                    else:
+                        cells.append("–")
+                lines.append(f"| {lc} | {vs} | " + " | ".join(cells) + " |")
+        lines.append("\nAll paired rows (every controller vs full, all budgets) are in `runs/<id>/results.json`.")
     return lines
 
 

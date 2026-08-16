@@ -54,7 +54,8 @@ def evaluate_real(
         seed = int(job.get("seed", ecfg.get("seed", 2000)))
         filler = Filler(corpus, seed=seed)
         instances = generate(task, n, tokens, seed, filler, count_tokens=model.count_tokens)
-        for inst in instances:
+        for i, inst in enumerate(instances):
+            inst.meta["prompt_id"] = f"{task}-{tokens}-{seed}-{i}"
             rows.extend(
                 _eval_instance(model, engine, inst, controllers, budgets, ecfg, log, on_row)
             )
@@ -120,6 +121,7 @@ def _row(inst, label, bf, budget, n_prompt, res, ref, forced: bool) -> dict:
     pre = prefix_agreement(gen, ref.generated_ids) if not forced else float("nan")
     return {
         "task": inst.task,
+        "prompt_id": inst.meta.get("prompt_id"),
         "seed": inst.meta.get("seed"),
         "target_tokens": inst.meta.get("target_tokens"),
         "n_prompt": n_prompt,
@@ -157,6 +159,21 @@ def _row(inst, label, bf, budget, n_prompt, res, ref, forced: bool) -> dict:
 def summarize_results(df: pd.DataFrame) -> dict:
     if len(df) == 0:
         return {}
+    if "prompt_id" not in df.columns or df["prompt_id"].isna().any():
+        # older runs: prompts of one job share a seed; instances appear in the same order for
+        # every (controller, budget), so the running index within a job identifies the prompt
+        df = df.copy()
+        df["prompt_id"] = (
+            df["task"].astype(str)
+            + "-"
+            + df["target_tokens"].astype(str)
+            + "-"
+            + df["seed"].astype(str)
+            + "-"
+            + df.groupby(["task", "target_tokens", "seed", "controller", "budget_frac"])
+            .cumcount()
+            .astype(str)
+        )
     out: dict = {"n_rows": len(df)}
     grp = df.groupby(["controller", "budget_frac"])
     table = []
@@ -179,7 +196,7 @@ def summarize_results(df: pd.DataFrame) -> dict:
     out["table"] = table
     # paired comparisons per prompt: accuracy and fidelity on graded tasks, NLL on lm only
     pairs = []
-    key = ["task", "seed", "target_tokens"]
+    key = ["task", "prompt_id"]
     full = df[df.controller == "full"].set_index(key)
 
     def _pair(label, b, vs, a_df, b_df):
