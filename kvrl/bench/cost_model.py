@@ -19,6 +19,7 @@ class DecodeCostModel:
     r2: float
     n_points: int
     device: str = ""
+    excluded: list | None = None  # cache lengths beyond the memory cliff (not fitted)
 
     def decode_ms(self, cache_len: float) -> float:
         return self.ms_per_token_base + self.ms_per_token_per_1k * cache_len / 1024.0
@@ -33,10 +34,22 @@ class DecodeCostModel:
         }
 
 
-def fit_decode_cost(curve: list[dict], device: str = "") -> DecodeCostModel:
-    """curve rows: {cache_len, decode_ms_per_tok_median}."""
-    x = np.array([r["cache_len"] for r in curve], dtype=float) / 1024.0
-    y = np.array([r["decode_ms_per_tok_median"] for r in curve], dtype=float)
+def fit_decode_cost(
+    curve: list[dict], device: str = "", cliff_factor: float = 4.0
+) -> DecodeCostModel:
+    """curve rows: {cache_len, decode_ms_per_tok_median}. Points whose cost exceeds
+    ``cliff_factor`` × the median of the others are treated as a memory cliff (e.g. the
+    machine starts swapping) and excluded from the affine fit but reported."""
+    xs = np.array([r["cache_len"] for r in curve], dtype=float)
+    ys = np.array([r["decode_ms_per_tok_median"] for r in curve], dtype=float)
+    keep = np.ones(len(xs), dtype=bool)
+    for i in range(len(xs)):
+        others = np.delete(ys, i)
+        if len(others) and ys[i] > cliff_factor * np.median(others):
+            keep[i] = False
+    excluded = [int(v) for v in xs[~keep]]
+    x = xs[keep] / 1024.0
+    y = ys[keep]
     if len(x) < 2:
         raise ValueError("need at least two curve points")
     A = np.stack([np.ones_like(x), x], axis=1)
@@ -44,4 +57,6 @@ def fit_decode_cost(curve: list[dict], device: str = "") -> DecodeCostModel:
     pred = A @ coef
     ss_res = float(((y - pred) ** 2).sum())
     ss_tot = float(((y - y.mean()) ** 2).sum()) or 1e-9
-    return DecodeCostModel(float(coef[0]), float(coef[1]), 1 - ss_res / ss_tot, len(x), device)
+    return DecodeCostModel(
+        float(coef[0]), float(coef[1]), 1 - ss_res / ss_tot, len(x), device, excluded
+    )

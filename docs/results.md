@@ -87,13 +87,45 @@
 | rl | 50% | window | nll | -0.1095 | [-0.2679, +0.0369] | 58% | 26 | no |
 | rl | 50% | window | accuracy | +0.1364 | [-0.1364, +0.4091] | 27% | 22 | no |
 
-_no finished bench run found_
+### Latency / memory — run `20260816-045836-bench-592800b64f` (Apple MPS, medians of 3 repeats)
+
+| context | controller | budget | prefill s | decode ms/tok | controller s | compact s | KV peak | peak alloc MB |
+|---|---|---|---|---|---|---|---|---|
+| 1024 | full | 100% | 1.48 | 40.0 | 0.000 | 0.000 | 100% | 973 |
+| 1024 | h2o | 25% | 1.73 | 55.0 | 0.005 | 0.103 | 30% | 955 |
+| 1024 | rl | 25% | 1.64 | 60.9 | 0.036 | 0.137 | 30% | 955 |
+| 1024 | window | 25% | 1.29 | 36.3 | 0.004 | 0.103 | 30% | 960 |
+| 2048 | full | 100% | 3.78 | 49.1 | 0.000 | 0.000 | 100% | 973 |
+| 2048 | h2o | 25% | 4.15 | 60.6 | 0.014 | 0.202 | 28% | 962 |
+| 2048 | rl | 25% | 4.10 | 61.4 | 0.068 | 0.160 | 28% | 962 |
+| 2048 | window | 25% | 2.82 | 42.5 | 0.008 | 0.176 | 28% | 972 |
+| 4096 | full | 100% | 6.67 | 44.9 | 0.000 | 0.000 | 100% | 992 |
+| 4096 | h2o | 25% | 8.32 | 50.9 | 0.019 | 0.212 | 26% | 973 |
+| 4096 | rl | 25% | 7.72 | 49.4 | 0.066 | 0.219 | 26% | 973 |
+| 4096 | window | 25% | 4.86 | 27.4 | 0.009 | 0.172 | 26% | 973 |
+| 8192 | full | 100% | 64.74 | 1680.2 | 0.000 | 0.000 | 100% | 1041 |
+| 8192 | h2o | 25% | 23.42 | 63.4 | 0.068 | 0.555 | 26% | 976 |
+| 8192 | rl | 25% | 23.77 | 61.7 | 0.565 | 0.535 | 26% | 976 |
+| 8192 | window | 25% | 10.71 | 32.2 | 0.025 | 0.383 | 26% | 974 |
+
+Fitted decode cost model: 31.80 ms/token + 2.485 ms per 1K cached tokens (R² = 0.339, 5 points).
 
 
-### PPO training — run `20260816-032826-train-d115d477aa`
+#### Decode cost vs cache length (full cache)
 
-- updates 58, decision steps 60452, episodes 1837, train time 2567.7 s, policy params 20097
-- best val lost-mass (decode, sim): 0.10111077626546223
+| cache length | decode ms/tok (median) | IQR |
+|---|---|---|
+| 512 | 28.3 | 26.7–28.9 |
+| 1024 | 48.1 | 29.1–52.7 |
+| 2048 | 36.0 | 33.7–36.7 |
+| 4096 | 27.6 | 26.7–32.7 |
+| 8192 | 57.5 | 45.9–60.0 |
+| 16384 | 1695.4 | 1475.5–1732.1 |
+
+### PPO training — run `20260816-042218-train-47d2c15626`
+
+- updates 39, decision steps 40642, episodes 1229, train time 2352.7 s, policy params 20097
+- best val lost-mass (decode, sim): 0.7148168385028839
 
 Sim lost-mass (decode) on val traces, deterministic policies:
 
@@ -102,6 +134,6 @@ Sim lost-mass (decode) on val traces, deterministic policies:
 | h2o          |  0.1568 | 0.1116 | 0.0576 |
 | oracle       |  0.1189 | 0.0777 | 0.0344 |
 | random       |  0.1894 | 0.1590 | 0.0985 |
-| rl           |  0.1476 | 0.1036 | 0.0521 |
+| rl           |  0.1506 | 0.1069 | 0.0539 |
 | snapkv       |  0.1528 | 0.1058 | 0.0515 |
 | window       |  0.1805 | 0.1476 | 0.1016 |
