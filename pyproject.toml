@@ -58,3 +58,4 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501"]
+"demo.py" = ["E501"]   # rich console strings
