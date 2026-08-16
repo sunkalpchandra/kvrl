@@ -361,8 +361,8 @@ def _run_demo(req: DemoRequest, emit=None) -> dict:
     try:
         _runs_dir().mkdir(parents=True, exist_ok=True)
         (_runs_dir() / "demo_latest.json").write_text(json.dumps(out, default=str))
-    except OSError:
-        pass
+    except OSError as e:  # best effort: the snapshot is a convenience for the static dashboard
+        out["snapshot_error"] = repr(e)
     return out
 
 
