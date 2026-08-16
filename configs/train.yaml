@@ -1,0 +1,49 @@
+# PPO in the cache simulator (Env A). Numbers follow ML_SPEC.md; scaled for the M2 laptop.
+seed: 0
+device: cpu                    # tiny nets: CPU beats MPS launch overhead
+checkpoint_dir: checkpoints
+checkpoint_name: ppo_mlp_v1
+
+data:
+  train_dir: data/raw/train
+  val_dir: data/raw/val
+  limit: null                  # max traces (null = all)
+  val_limit: 12
+  tasks: null                  # e.g. [lm, needle]
+  max_prompt: null
+
+features:
+  ema_fast: 0.5
+  ema_slow: 0.9
+  # token: [age_log, ...]     # subset for ablations (default all 18)
+
+sim:
+  budget_fracs: [0.25, 0.125, 0.5]
+  lambda_task: 1.0
+  n_sink: 4
+  r_scale: null                # null = calibrate from a random policy at budget_fracs[0]
+  calib_episodes: 6
+  layer_max_reward: false
+
+rl:
+  algorithm: ppo
+  arch: mlp                    # mlp | deepsets | setattn
+  hidden: 128
+  gamma: 0.99
+  gae_lambda: 0.95
+  lr: 3.0e-4
+  lr_end: 3.0e-5
+  clip: 0.2
+  entropy_coef: 0.01
+  value_coef: 0.5
+  epochs: 4
+  minibatch: 128
+  target_kl: 0.02
+  ratio_mode: per_slot         # per_slot | sequence
+  privileged_critic: true
+
+training:
+  steps_per_update: 1024       # decision-steps per PPO update
+  total_steps: 60000
+  eval_every_updates: 5
+  eval_traces: 8

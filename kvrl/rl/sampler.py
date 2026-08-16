@@ -20,6 +20,9 @@ from __future__ import annotations
 import torch
 
 NEG = float("-inf")
+# Padding value for picked-score vectors. NOT -inf: torch.logcumsumexp yields NaN gradients on
+# all -inf prefixes (padded slots), which silently corrupted PPO updates (BUG-001).
+NEG_FINITE = -1.0e4
 
 
 def _masked_scores(scores: torch.Tensor, cand_mask: torch.Tensor) -> torch.Tensor:
@@ -77,7 +80,7 @@ def log_prob(scores: torch.Tensor, cand_mask: torch.Tensor, evict_idx: torch.Ten
     valid = evict_idx >= 0  # [B, M]
     idx = evict_idx.clamp_min(0)
     p = torch.gather(s, 1, idx)  # [B, M]
-    p = p.masked_fill(~valid, NEG)
+    p = p.masked_fill(~valid, NEG_FINITE)
     # unpicked partition
     s_u = s.masked_fill(_picked_mask(s, idx, valid), NEG)
     z_u = torch.logsumexp(s_u, dim=1)  # [B]
@@ -95,7 +98,7 @@ def entropy(scores: torch.Tensor, cand_mask: torch.Tensor, evict_idx: torch.Tens
     s = _masked_scores(scores.float(), cand_mask)
     valid = evict_idx >= 0
     idx = evict_idx.clamp_min(0)
-    p = torch.gather(s, 1, idx).masked_fill(~valid, NEG)
+    p = torch.gather(s, 1, idx).masked_fill(~valid, NEG_FINITE)
     s_u = s.masked_fill(_picked_mask(s, idx, valid), NEG)
     z_u = torch.logsumexp(s_u, dim=1)  # [B]
     # w_U = Σ_{l∈U} softmax_U(s)_l s_l  (0 * -inf guarded)
@@ -103,7 +106,8 @@ def entropy(scores: torch.Tensor, cand_mask: torch.Tensor, evict_idx: torch.Tens
     w_u = (torch.exp(s_u - z_u[:, None]) * su_safe).sum(dim=1)
     # T_j = logsumexp_{l>=j} p_l ; v_j = Σ_{l>=j} e^{p_l - T_j} p_l (row-max shift for stability)
     t = torch.flip(torch.logcumsumexp(torch.flip(p, [1]), dim=1), [1])
-    c = p.masked_fill(~valid, NEG).max(dim=1, keepdim=True).values  # [B,1]
+    c = p.masked_fill(~valid, NEG_FINITE).max(dim=1, keepdim=True).values  # [B,1]
+    t = torch.where(valid, t, c.expand_as(t))  # padded slots: finite, gradient-free
     e = torch.exp(p - c) * p.masked_fill(~valid, 0.0)  # e^{p_l - c} p_l, 0 on padding
     tail = torch.flip(torch.cumsum(torch.flip(e, [1]), dim=1), [1])  # Σ_{l>=j} e^{p_l-c} p_l
     v = tail * torch.exp(c - t)

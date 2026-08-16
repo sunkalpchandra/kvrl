@@ -126,3 +126,16 @@ def test_masked_tokens_never_sampled():
     for _ in range(50):
         idx = sample_evict(scores, cand, 2, generator=g)
         assert set(idx.tolist()) <= {3, 7, 11}
+
+
+def test_padded_batch_gradients_are_finite():
+    """Regression (BUG-001): -inf padding in logcumsumexp gave NaN grads for mixed-m batches."""
+    torch.manual_seed(5)
+    S = torch.randn(3, 9, requires_grad=True)
+    C = torch.ones(3, 9, dtype=torch.bool)
+    E = torch.tensor([[1, 4, 7], [2, -1, -1], [0, 8, -1]])
+    lp, valid = log_prob(S, C, E)
+    h, _ = entropy(S, C, E)
+    (lp[valid].sum() + h[valid].sum()).backward()
+    assert torch.isfinite(S.grad).all()
+    assert torch.isfinite(lp[valid]).all() and torch.isfinite(h[valid]).all()
