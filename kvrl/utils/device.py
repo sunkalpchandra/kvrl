@@ -188,4 +188,8 @@ def pick_dtype(device: torch.device | str, requested: str | None = None) -> torc
         raise ValueError(f"unknown dtype {requested!r}")
     if dev.type == "cpu":
         return torch.float32
+    if dev.type == "mps":
+        # Measured 2026-08-16 on Apple M2 / torch 2.13: fp16 is ~2.6x faster than bf16
+        # (prefill 1751 vs 668 tok/s, decode 23 vs 50 ms/tok on Qwen2.5-0.5B). See D-004.
+        return torch.float16
     return torch.bfloat16 if supports_bf16(dev) else torch.float16

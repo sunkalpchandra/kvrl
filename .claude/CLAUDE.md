@@ -32,7 +32,7 @@ for architectural decisions — they live in `.claude/context/`.**
 ## Environment (verified 2026-08-16)
 
 - macOS 14.6.1, Apple M2, 8 GB unified memory, ~9.5 GB free disk (tight!)
-- No CUDA. `torch.backends.mps` available (recommended max ≈ 5.7 GB). CPU fallback.
+- No CUDA. `torch.backends.mps` available (recommended max ≈ 5.33 GiB). CPU fallback.
 - Python 3.12.0 (framework build), venv at `.venv` (`--system-site-packages`,
   reusing system torch 2.13.0, numpy 2.2.5, gymnasium 1.3.0, pandas, scipy,
   matplotlib, pytest, sklearn). Extra deps installed into the venv.
