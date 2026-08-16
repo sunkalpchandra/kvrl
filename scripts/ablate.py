@@ -53,8 +53,9 @@ ABLATIONS = {
         "setattn": {"rl": {"arch": "setattn"}},
     },
     "reward": {
+        "layer_max_crit": {},  # v1.2 default: layer-max reward + critical-eviction penalty
         "layer_mean": {"sim": {"layer_max_reward": False}},
-        "layer_max": {"sim": {"layer_max_reward": True}},
+        "no_crit_penalty": {"sim": {"lambda_crit": 0.0}},
         "no_task_term": {"sim": {"lambda_task": 0.0}},
         "no_privileged_critic": {"rl": {"privileged_critic": False}},
     },
@@ -71,7 +72,11 @@ def main() -> int:
     ap.add_argument("--steps", type=int, default=20000)
     ap.add_argument("--only", default=None, help="comma-separated ablation groups")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--no-warm", action="store_true", help="train every variant from scratch (fair for feature ablations)")
+    ap.add_argument(
+        "--no-warm",
+        action="store_true",
+        help="train every variant from scratch (fair for feature ablations)",
+    )
     args = ap.parse_args()
     groups = args.only.split(",") if args.only else list(ABLATIONS)
     results = []
@@ -84,6 +89,31 @@ def main() -> int:
             cfg["checkpoint_name"] = f"ablate_{g}_{name}"
             if args.no_warm:
                 cfg["rl"]["init_from"] = None
+            elif "features" in delta:
+                # warm-start protocol: train a regressor on the SAME feature subset first
+                feats = delta["features"]["token"]
+                reg_path = Path(f"checkpoints/ablate_reg_{name}.pt")
+                if not reg_path.exists():
+                    import subprocess
+
+                    subprocess.run(
+                        [
+                            sys.executable,
+                            "scripts/train_regressor.py",
+                            "--out",
+                            str(reg_path),
+                            "--features",
+                            ",".join(feats),
+                            "--episodes",
+                            "80",
+                            "--epochs",
+                            "20",
+                            "--max-prompt",
+                            str(cfg["data"].get("max_prompt") or 100000),
+                        ],
+                        check=True,
+                    )
+                cfg["rl"]["init_from"] = str(reg_path)
             # apply delta (shallow per section)
             for sec, vals in delta.items():
                 cfg.setdefault(sec, {}).update(vals)

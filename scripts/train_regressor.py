@@ -72,11 +72,16 @@ def main() -> int:
     ap.add_argument("--episodes", type=int, default=120)
     ap.add_argument("--epochs", type=int, default=30)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--features", default=None, help="comma-separated token-feature subset")
+    ap.add_argument("--max-prompt", type=int, default=None)
     args = ap.parse_args()
     seed_everything(args.seed)
-    traces = load_traces(args.train)
-    val_traces = load_traces(args.val)
-    fcfg = FeatureConfig(**feature_norm_constants(traces))
+    traces = load_traces(args.train, max_prompt=args.max_prompt)
+    val_traces = load_traces(args.val, max_prompt=args.max_prompt)
+    feats = args.features.split(",") if args.features else None
+    fcfg = FeatureConfig(
+        **feature_norm_constants(traces), **({"token_features": feats} if feats else {})
+    )
     t0 = time.time()
     X, G, Y = collect_pairs(traces, fcfg, [0.125, 0.25, 0.5], args.episodes, seed=args.seed)
     print(
