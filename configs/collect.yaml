@@ -1,0 +1,44 @@
+# Trace collection for the simulator (Phase 2). Runs the real model with a full cache and
+# attention statistics on; one .npz per prompt under data/raw/<split>/.
+model:
+  name: qwen2.5-0.5b-instruct
+  device: auto
+  dtype: auto          # fp16 on MPS (D-004)
+
+collect:
+  chunk: 64            # decision granularity C (must match the RL formulation)
+  max_new_tokens: 64   # generated (or forced, for lm) tokens per trace
+  out_dir: data/raw
+  splits:
+    train:
+      seed_base: 0
+      # (task, context tokens, count) — mixed lengths and task families
+      jobs:
+        - {task: lm,         tokens: 2048, n: 16}
+        - {task: needle,     tokens: 2048, n: 6}
+        - {task: kv,         tokens: 2048, n: 6}
+        - {task: multihop,   tokens: 2048, n: 4}
+        - {task: dependency, tokens: 2048, n: 4}
+        - {task: code,       tokens: 2048, n: 4}
+        - {task: lm,         tokens: 4096, n: 16}
+        - {task: needle,     tokens: 4096, n: 6}
+        - {task: kv,         tokens: 4096, n: 6}
+        - {task: multihop,   tokens: 4096, n: 4}
+        - {task: dependency, tokens: 4096, n: 4}
+        - {task: code,       tokens: 4096, n: 4}
+        - {task: lm,         tokens: 8192, n: 8}
+        - {task: needle,     tokens: 8192, n: 4}
+        - {task: kv,         tokens: 8192, n: 4}
+        - {task: multihop,   tokens: 8192, n: 2}
+        - {task: dependency, tokens: 8192, n: 2}
+    val:
+      seed_base: 1000
+      jobs:
+        - {task: lm,         tokens: 2048, n: 4}
+        - {task: needle,     tokens: 2048, n: 2}
+        - {task: kv,         tokens: 2048, n: 2}
+        - {task: multihop,   tokens: 4096, n: 2}
+        - {task: dependency, tokens: 4096, n: 2}
+        - {task: lm,         tokens: 4096, n: 4}
+        - {task: needle,     tokens: 8192, n: 2}
+        - {task: lm,         tokens: 8192, n: 2}
