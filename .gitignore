@@ -22,7 +22,8 @@ data/*.h5
 data/*.npz
 data/*.npy
 data/*.sqlite
-runs/
+runs/*
+!runs/.gitkeep
 checkpoints/*.pt
 checkpoints/*.bin
 !checkpoints/README.md

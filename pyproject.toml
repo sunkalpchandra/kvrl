@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kvrl"
+version = "0.1.0"
+description = "Adaptive KV cache: an RL controller decides what a Transformer keeps or evicts in its KV cache during long-context inference"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Sunkalp Chandra" }]
+dependencies = [
+    "numpy>=1.26",
+    "torch>=2.3",
+    "transformers>=4.53",
+    "safetensors>=0.4",
+    "tokenizers>=0.19",
+    "huggingface_hub>=0.23",
+    "pyyaml>=6.0",
+    "pyarrow>=15.0",
+    "pandas>=2.0",
+    "gymnasium>=0.29",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+server = ["fastapi>=0.110", "uvicorn>=0.27", "pydantic>=2.0"]
+plots = ["matplotlib>=3.8"]
+dev = ["pytest>=8.0", "ruff>=0.4", "httpx"]
+
+[tool.setuptools]
+packages = { find = { include = ["kvrl*"] } }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -m 'not slow'"
+markers = [
+    "slow: needs the real model / long runtime (deselected by default)",
+    "mps: needs Apple MPS",
+    "cuda: needs CUDA",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+exclude = [".venv", "frontend", "data", "runs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "RUF"]
+ignore = [
+    "E741",   # ambiguous names: attention math uses q/k/v/l idioms
+    "RUF012", # mutable class attrs used deliberately in configs
+    "B905",   # zip strict — noisy
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
