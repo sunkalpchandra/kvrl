@@ -228,13 +228,16 @@ class CacheSimEnv:
         # reward: discounted future mass of evicted tokens
         k = self.k
         ev_tokens = self.alive[ev.numpy()]
-        fut = float(self.F[k, ev_tokens].sum())
-        reward = -fut / self.r_scale
+        # per-slot immediate cost of each evicted token (the reward is additive over slots, so
+        # PPO can assign credit within a decision — see PPO advantage_mode="per_slot")
+        slot_costs = self.F[k, ev_tokens].astype(np.float64) / self.r_scale
         crit = self.trace.critical_mask if self.trace is not None else None
         if self.lambda_crit > 0 and crit is not None and crit.any():
-            n_crit_evicted = float(crit[ev_tokens].sum())
-            self.crit_evicted_total += n_crit_evicted
-            reward -= self.lambda_crit * n_crit_evicted / float(crit.sum())
+            crit_ev = crit[ev_tokens].astype(np.float64)
+            self.crit_evicted_total += float(crit_ev.sum())
+            slot_costs = slot_costs + self.lambda_crit * crit_ev / float(crit.sum())
+        reward = -float(slot_costs.sum())
+        self._last_slot_costs = torch.from_numpy(slot_costs.astype(np.float32))
         self.evicted[ev_tokens] = True
         self.evict_step[ev_tokens] = k
         self.n_evictions += int(ev.numel())
@@ -245,7 +248,9 @@ class CacheSimEnv:
         self.total_reward += reward
         self._pending_state = None
         self.k += 1
-        return self._advance(reward)
+        res = self._advance(reward)
+        res.info["slot_costs"] = self._last_slot_costs
+        return res
 
     def _finish(self, reward: float) -> SimStepResult:
         tr = self.trace

@@ -2,7 +2,7 @@
 seed: 0
 device: cpu                    # tiny nets: CPU beats MPS launch overhead
 checkpoint_dir: checkpoints
-checkpoint_name: ppo_mlp_v1_2
+checkpoint_name: ppo_mlp_v1_3
 
 data:
   train_dir: data/raw/train
@@ -41,6 +41,8 @@ rl:
   minibatch: 256
   target_kl: 0.02
   ratio_mode: per_slot         # per_slot | sequence
+  advantage_mode: per_slot     # shared (v1) | per_slot (v1.3: within-decision counterfactual credit)
+  slot_adv_coef: 1.0
   privileged_critic: true
   init_from: checkpoints/regressor_v1.pt   # warm start (D-009); null = from scratch
 

@@ -22,6 +22,7 @@ class Transition:
     reward: float
     priv: torch.Tensor  # [P]
     episode: int
+    slot_costs: torch.Tensor | None = None  # [m] immediate cost of each evicted token
 
 
 @dataclass
@@ -87,6 +88,11 @@ class PPOConfig:
     target_kl: float = 0.02
     normalize_adv: bool = True
     ratio_mode: str = "per_slot"  # or "sequence"
+    #: "shared": every slot of a decision gets the step's GAE advantage (v1);
+    #: "per_slot": add a within-decision counterfactual term z(mean_cost - own_cost) so the
+    #: slot that evicted an expensive token gets less credit than the others (v1.3)
+    advantage_mode: str = "shared"
+    slot_adv_coef: float = 1.0
 
 
 class PPO:
@@ -141,6 +147,20 @@ class PPO:
         for i, t in enumerate(buf.items):
             old_lp_all[i, : t.logp_old.numel()] = t.logp_old.to(self.device)
         old_v_all = torch.tensor([t.value for t in buf.items], device=self.device)
+        slot_adv_all = None
+        if cfg.advantage_mode == "per_slot":
+            cost_all = torch.zeros_like(ev_all, dtype=torch.float32)
+            has = torch.zeros(n, dtype=torch.bool, device=self.device)
+            for i, t in enumerate(buf.items):
+                if t.slot_costs is not None and t.slot_costs.numel() == t.evict.numel():
+                    cost_all[i, : t.slot_costs.numel()] = t.slot_costs.to(self.device)
+                    has[i] = True
+            valid_slots = ev_all >= 0
+            cnt = valid_slots.sum(dim=1).clamp_min(1).float()
+            mean_c = (cost_all * valid_slots).sum(dim=1) / cnt
+            diff = (mean_c[:, None] - cost_all) * valid_slots  # cheaper-than-average -> positive
+            sd = diff[valid_slots & has[:, None]].std().clamp_min(1e-8) if bool(has.any()) else 1.0
+            slot_adv_all = cfg.slot_adv_coef * diff / sd * has[:, None]
         stats = {
             "policy_loss": [],
             "value_loss": [],
@@ -179,6 +199,8 @@ class PPO:
                 else:
                     ratio = torch.exp(lp - old_lp)
                 a = adv[:, None]
+                if slot_adv_all is not None:
+                    a = a + slot_adv_all[mbt, :m_max]
                 surr1 = ratio * a
                 surr2 = torch.clamp(ratio, 1 - cfg.clip, 1 + cfg.clip) * a
                 pl = -(torch.minimum(surr1, surr2) * sm).sum(dim=1) / n_slots

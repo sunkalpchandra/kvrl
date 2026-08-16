@@ -201,6 +201,8 @@ def train(cfg: dict, run: Run, log=print) -> dict:
         minibatch=int(rl.get("minibatch", 256)),
         target_kl=float(rl.get("target_kl", 0.02)),
         ratio_mode=rl.get("ratio_mode", "per_slot"),
+        advantage_mode=rl.get("advantage_mode", "shared"),
+        slot_adv_coef=float(rl.get("slot_adv_coef", 1.0)),
     )
     if init_from:
         same_shape = all(
@@ -255,6 +257,7 @@ def train(cfg: dict, run: Run, log=print) -> dict:
                         nxt.reward,
                         priv,
                         episode,
+                        slot_costs=nxt.info.get("slot_costs"),
                     )
                 )
                 ep_reward += nxt.reward

@@ -67,3 +67,29 @@ def test_checkpoint_roundtrip_and_controller_in_sim_and_engine(tmp_path):
     # deterministic: same run twice gives the same evictions
     res2 = eng.run(ids, make_controller("rl", checkpoint=p), budget=80, max_new_tokens=20, stop_on_eos=False)
     assert [d.evicted_positions for d in res.decisions] == [d.evicted_positions for d in res2.decisions]
+
+
+def test_per_slot_advantage_update():
+    """v1.3: within-decision counterfactual credit — slot costs recorded, update runs, finite."""
+    torch.manual_seed(1)
+    fcfg = FeatureConfig()
+    env = CacheSimEnv(feature_cfg=fcfg, r_scale=0.1, lambda_crit=5.0)
+    policy = ScorePolicy(len(TOKEN_FEATURES), len(GLOBAL_FEATURES))
+    value = ValueNet(len(TOKEN_FEATURES), len(GLOBAL_FEATURES))
+    algo = PPO(policy, value, PPOConfig(minibatch=16, epochs=2, advantage_mode="per_slot"))
+    gen = torch.Generator().manual_seed(0)
+    buf = RolloutBuffer()
+    for seed in range(2):
+        res = env.reset(synthetic_trace(seed=seed), budget=96)
+        while not res.done:
+            priv = env.privileged()
+            ev, lp, v, _ = algo.act(res.obs_tok, res.obs_glob, res.cand_mask, res.m, priv=priv, generator=gen)
+            nxt = env.step(ev)
+            assert nxt.info["slot_costs"].numel() == ev.numel()
+            assert torch.allclose(-nxt.info["slot_costs"].sum(), torch.tensor(nxt.reward), atol=1e-4) or nxt.done
+            buf.add(Transition(res.obs_tok.half(), res.obs_glob, res.cand_mask, ev, lp, v, nxt.reward, priv, 0,
+                               slot_costs=nxt.info["slot_costs"]))
+            res = nxt
+        buf.end_episode(0.0)
+    stats = algo.update(buf)
+    assert all(torch.isfinite(torch.tensor(v)).all() for v in stats.values() if isinstance(v, float))
