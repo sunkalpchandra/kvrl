@@ -189,6 +189,14 @@ Regenerate with `python scripts/make_report.py` (figures in `docs/figures/`, tab
 ![Decode cost vs cache length](docs/figures/decode_curve.png)
 ![PPO training](docs/figures/training.png)
 
+Ablations (simulator, 12 variants × 20K steps with a warm-start protocol; `docs/ablations.md`):
+attention features carry the lost-mass signal (age-only 0.132, no-attention 0.121 vs full 0.109;
+H2O 0.112), key/value norms add a little, history features barely matter; the layer-max reward,
+the critical-eviction penalty and per-slot credit each buy critical-token retention (0.276–0.287
+→ 0.390) for ≈0.004 lost mass; the terminal task term does nothing.
+
+![Ablations](docs/figures/ablations.png)
+
 Failure analysis (simulator, val traces; `docs/failure_analysis.md`): where controllers keep
 tokens, critical-token retention by task, and RL feature permutation importance.
 

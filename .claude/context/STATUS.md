@@ -51,9 +51,11 @@ _Last updated: 2026-08-16 16:40 — v1 complete + issue-driven second pass (E-01
 - Harness bugs fixed: MPS allocator bloat (BUG-003), deepcopy in the decode curve (BUG-004).
 - Benchmark v4 (5 repeats, keynorm + rl) is the canonical latency table.
 
+- Ablations done (E-019, docs/ablations.md).
+
 ## In progress
-- Ablations with the warm-start protocol (scripts/ablate.py, 20K steps) — resumed after the
-  benchmark; results land in docs/ablations.md when done.
+- Nothing running. Next: TODO.md (real-inference fine-tuning with task reward is the
+  principled next step; CUDA validation).
 
 ## Measured facts to remember
 - MPS fp16 vs bf16: 2.6× faster (D-004). enable_gqa vs repeat_kv: 4–25× faster attention on MPS.
