@@ -63,6 +63,41 @@ def critical_token_mask(model: HFCausalLM, task: TaskInstance, ids: torch.Tensor
     return mask
 
 
+def answer_token_mask(
+    token_ids: np.ndarray, critical: np.ndarray, answers: list[str], tok
+) -> np.ndarray:
+    """Tokens of the answer string(s) inside the critical span(s) — what actually decides the
+    task (a needle's frame vs its code). Used to weight the critical-eviction penalty."""
+    from itertools import pairwise
+
+    mask = np.zeros(len(token_ids), dtype=bool)
+    if not answers or not critical.any() or tok is None:
+        return mask
+    idx = np.nonzero(critical)[0]
+    spans, start = [], idx[0]
+    for a, b in pairwise(idx):
+        if b != a + 1:
+            spans.append((start, a))
+            start = b
+    spans.append((start, idx[-1]))
+    for s, e in spans:
+        pieces = [tok.decode([int(t)]) for t in token_ids[s : e + 1]]
+        text = "".join(pieces)
+        offs, pos = [], 0
+        for piece in pieces:
+            offs.append((pos, pos + len(piece)))
+            pos += len(piece)
+        for ans in answers:
+            a = str(ans)
+            j = text.find(a)
+            while j >= 0:
+                for i, (x, y) in enumerate(offs):
+                    if x < j + len(a) and y > j:
+                        mask[s + i] = True
+                j = text.find(a, j + 1)
+    return mask
+
+
 def collect_trace(
     model: HFCausalLM,
     task: TaskInstance,
@@ -125,6 +160,7 @@ def collect_trace(
     crit = critical_token_mask(model, task, ids)
     crit_full = np.zeros(T_cache, dtype=bool)
     crit_full[: min(T_cache, crit.shape[0])] = crit[:T_cache]
+    ans_mask = answer_token_mask(all_ids.numpy(), crit_full, task.answers, model.tokenizer)
     correct = is_correct(res.text, task.answers) if task.answers else None
     meta = {
         "task": task.task,
@@ -160,6 +196,7 @@ def collect_trace(
         gen_logprob=np.array(res.token_logprobs[: T_cache - n_prompt], dtype=np.float16),
         critical_mask=crit_full,
         meta=meta,
+        answer_mask=ans_mask,
     )
     if out_dir is not None:
         save_trace(tr, out_dir)

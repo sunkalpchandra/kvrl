@@ -26,6 +26,7 @@ class Trace:
     gen_logprob: np.ndarray  # float16 [G]  full-cache log-prob of generated tokens
     critical_mask: np.ndarray  # bool [T]
     meta: dict = field(default_factory=dict)
+    answer_mask: np.ndarray | None = None  # bool [T]: answer tokens inside the critical span
 
     @property
     def n_steps(self) -> int:
@@ -73,6 +74,7 @@ def save_trace(tr: Trace, directory: str | Path) -> Path:
         gen_logprob=tr.gen_logprob.astype(np.float16),
         critical_mask=tr.critical_mask.astype(bool),
         meta=np.array(json.dumps(tr.meta, default=str)),
+        **({"answer_mask": tr.answer_mask.astype(bool)} if tr.answer_mask is not None else {}),
     )
     return p
 
@@ -95,6 +97,7 @@ def load_trace(path: str | Path) -> Trace:
         gen_logprob=z["gen_logprob"],
         critical_mask=z["critical_mask"],
         meta=json.loads(str(z["meta"])),
+        answer_mask=z["answer_mask"] if "answer_mask" in z.files else None,
     )
 
 
