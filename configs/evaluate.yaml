@@ -1,0 +1,32 @@
+# Real-model evaluation over the long-context task suite (Phase 9 / demo numbers).
+model:
+  name: qwen2.5-0.5b-instruct
+  device: auto
+  dtype: auto
+
+eval:
+  seed: 2000                 # test seeds (disjoint from train 0-999 / val 1000-1099)
+  chunk: 64
+  decide_every: 64
+  n_sink: 4
+  min_budget_tokens: 128
+  max_new_tokens: 16
+  lm_continuation_tokens: 64
+  budget_fracs: [0.5, 0.25, 0.125]
+  controllers:
+    - {name: full}
+    - {name: window}
+    - {name: random}
+    - {name: snapkv}
+    - {name: h2o}
+    - {name: keynorm}
+    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1.pt}
+  jobs:
+    - {task: needle,     tokens: 2048, n: 6}
+    - {task: kv,         tokens: 2048, n: 6}
+    - {task: multihop,   tokens: 2048, n: 6}
+    - {task: dependency, tokens: 2048, n: 6}
+    - {task: code,       tokens: 2048, n: 4}
+    - {task: lm,         tokens: 2048, n: 6}
+    - {task: needle,     tokens: 4096, n: 4}
+    - {task: lm,         tokens: 4096, n: 4}
