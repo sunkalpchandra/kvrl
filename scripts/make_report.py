@@ -48,11 +48,41 @@ plt.rcParams.update(
 )
 
 
+def finished(kind: str):
+    return [r for r in list_runs(kind=kind) if r.get("meta", {}).get("status") == "finished"]
+
+
 def latest(kind: str, run_id: str | None):
-    runs = [r for r in list_runs(kind=kind) if r.get("meta", {}).get("status") == "finished"]
+    runs = finished(kind)
     if run_id:
         runs = [r for r in runs if r["meta"]["run_id"] == run_id]
+    if kind == "eval" and not run_id and runs:
+        # primary = the largest evaluation (most rows); others are reported compactly
+        runs = sorted(runs, key=lambda r: (Path(r["dir"]) / "results.parquet").stat().st_size
+                      if (Path(r["dir"]) / "results.parquet").exists() else 0)
     return runs[-1] if runs else None
+
+
+def compact_eval_section(run) -> list[str]:
+    p = Path(run["dir"]) / "results.parquet"
+    if not p.exists():
+        return []
+    df = pd.read_parquet(p)
+    cfg = run.get("config", {})
+    jobs = cfg.get("eval", {}).get("jobs", [])
+    desc = ", ".join(f"{j['task']}@{j['tokens']}×{j['n']}" for j in jobs)
+    lines = [f"\n### Additional evaluation — run `{run['meta']['run_id']}` ({desc}; {len(df)} rows)\n",
+             "| controller | budget | n | accuracy | NLL | fidelity | KV peak | model s |", "|---|---|---|---|---|---|---|---|"]
+    for (c, b), g in df.groupby(["controller", "budget_frac"]):
+        acc = g["correct"].dropna().astype(float)
+        lines.append(f"| {c} | {'100%' if c == 'full' else f'{b:.0%}'} | {len(g)} | {acc.mean() if len(acc) else float('nan'):.3f} | "
+                     f"{g['nll'].mean():.3f} | {g['fidelity'].mean():.3f} | {g['kv_peak_frac'].mean():.0%} | {g['model_s'].median():.1f} |")
+    bt = df[df.correct.notna()].groupby(["task", "n_prompt", "controller", "budget_frac"])["correct"].mean().reset_index()
+    if len(bt):
+        lines.append("\nPer prompt length (accuracy):\n")
+        piv = bt.pivot_table(index=["task", "n_prompt"], columns=["controller", "budget_frac"], values="correct")
+        lines.append(piv.round(2).to_markdown())
+    return lines
 
 
 def pareto_figures(run) -> list[str]:
@@ -306,6 +336,14 @@ def main() -> int:
             out.extend(fn(run))
         except Exception as e:  # keep going; report the failure honestly
             out.append(f"\n_{kind} report failed: {e!r}_\n")
+    primary = latest("eval", args.eval)
+    for r in finished("eval"):
+        if primary is not None and r["meta"]["run_id"] == primary["meta"]["run_id"]:
+            continue
+        try:
+            out.extend(compact_eval_section(load_run(r["dir"])))
+        except Exception as e:
+            out.append(f"\n_additional eval {r['meta']['run_id']} report failed: {e!r}_\n")
     Path("docs/results.md").write_text("\n".join(out) + "\n")
     print("\n".join(out))
     return 0
