@@ -23,7 +23,7 @@ sim:
   n_sink: 4
   r_scale: null                # null = calibrate from a random policy at budget_fracs[0]
   calib_episodes: 6
-  layer_max_reward: false
+  layer_max_reward: true       # E-proxy: layer-max lost mass tracks real ΔNLL better (D-009)
 
 rl:
   algorithm: ppo
@@ -41,7 +41,7 @@ rl:
   target_kl: 0.02
   ratio_mode: per_slot         # per_slot | sequence
   privileged_critic: true
-  init_from: null              # e.g. checkpoints/regressor_v1.pt for a warm start
+  init_from: checkpoints/regressor_v1.pt   # warm start (D-009); null = from scratch
 
 training:
   steps_per_update: 1024       # decision-steps per PPO update

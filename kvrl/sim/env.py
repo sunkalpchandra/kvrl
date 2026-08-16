@@ -112,6 +112,9 @@ class CacheSimEnv:
         self.fs = FeatureState(self.feature_cfg)
         self.total_reward = 0.0
         self.lost_mass = []  # ℓ_k per step (raw full-cache mass on already-evicted tokens)
+        self.lost_lmax = []  # layer-max variant
+        self.lost_vw = []  # value-norm-weighted variant (fraction)
+        self._vnorm = trace.value_norm.astype(np.float32)
         self.crit_retained = []  # per decode step
         self.n_evictions = 0
         self._cum_mean = np.zeros(0, dtype=np.float32)
@@ -128,9 +131,15 @@ class CacheSimEnv:
         new = np.arange(start, end)
         R = np.concatenate([self.alive, new])
         A_row = self.A[k, :end]
-        # lost mass on this chunk (tokens evicted before step k)
+        # lost mass on this chunk (tokens evicted before step k): layer-mean (the reward proxy),
+        # layer-max and value-norm-weighted variants (E-proxy comparison)
         ev = self.evicted[:end]
         self.lost_mass.append(float(A_row[ev].sum()))
+        self.lost_lmax.append(float(self.Amax[k, :end][ev].sum()))
+        vn = self._vnorm[:end]
+        self.lost_vw.append(
+            float((A_row[ev] * vn[ev]).sum() / max(1e-9, float((A_row * vn).sum())))
+        )
         a_R = A_row[R]
         z = float(a_R.sum())
         if z <= 0:
@@ -283,7 +292,11 @@ class CacheSimEnv:
         assert tr is not None
         lm = np.array(self.lost_mass, dtype=np.float64)
         dec = tr.step_phase == 1
+        lx = np.array(self.lost_lmax, dtype=np.float64)
+        lv = np.array(self.lost_vw, dtype=np.float64)
         out = {
+            "lost_lmax_decode": float(lx[dec[: lx.size]].mean()) if dec.any() and lx.size else 0.0,
+            "lost_vw_decode": float(lv[dec[: lv.size]].mean()) if dec.any() and lv.size else 0.0,
             "lost_mass_mean": float(lm.mean()) if lm.size else 0.0,
             "lost_mass_decode": float(lm[dec[: lm.size]].mean()) if dec.any() and lm.size else 0.0,
             "lost_mass_last_prefill": float(lm[(~dec)[: lm.size]][-1])

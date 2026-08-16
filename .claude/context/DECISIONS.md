@@ -46,3 +46,12 @@ Decision: adopt the Recommended v1 spec (ML_SPEC.md). Sinks S=4 + current chunk 
 Context: Qwen2.5-Instruct generation_config ships repetition_penalty=1.1, applied even in
 greedy mode; our manual loop matches generate() only with penalty 1.0.
 Decision: `greedy_reference()` sets repetition_penalty=1.0; tests assert token equality.
+
+## D-009 (2026-08-16) — Reward uses layer-MAX lost attention mass; warm start from regressor
+Context: E-proxy (E-004) shows the layer-mean proxy correlates weakly with real ΔNLL (ρ 0.44)
+while the layer-max variant reaches 0.62 (per-budget 0.57–0.72) — retrieval heads are hidden by
+averaging, as the ML Architect flagged. From-scratch PPO (E-003) stayed near-uniform and below
+H2O in 16K steps.
+Decision: `sim.layer_max_reward: true` by default; `rl.init_from: checkpoints/regressor_v1.pt`
+warm start by default; the from-scratch/layer-mean runs remain as recorded ablations.
+Consequences: reward scale recalibrated (r_scale from Amax); features unchanged.
