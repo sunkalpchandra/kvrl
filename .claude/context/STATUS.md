@@ -1,6 +1,6 @@
 # STATUS  (update after every significant piece of work)
 
-_Last updated: 2026-08-16 02:45 (Phase 4 in progress: traces collecting, PPO pipeline verified)_
+_Last updated: 2026-08-16 05:05 (Phases 1–10 done; benchmark + long-context eval running; docs finishing)_
 
 ## Works right now (all verified by tests or real runs)
 - **Model stack**: `kvrl.models` — Qwen2.5-0.5B-Instruct on MPS fp16 (also CPU/CUDA), registered
@@ -22,9 +22,18 @@ _Last updated: 2026-08-16 02:45 (Phase 4 in progress: traces collecting, PPO pip
 - **CLIs**: kvrl.collect / kvrl.train / kvrl.evaluate / kvrl.benchmark / demo.py.
 - Tests: 57 passing (`pytest -q`), ruff clean.
 
+## Results so far (see EXPERIMENTS.md, docs/results.md)
+- Traces: 99 train / 20 val (70 MB). Regressor baseline (val corr 0.89). PPO v1 = warm start +
+  layer-max reward, 60K steps (E-006). E-proxy: layer-max proxy ρ=0.59 vs real ΔNLL (E-004b).
+- Real evaluation (E-007): RL beats h2o/snapkv/window/random at all budgets (acc + NLL; paired
+  NLL vs h2o significant at 25/50%) but the key-norm heuristic is better on this suite
+  (needle-driven). Failure analysis: RL relies most on key_norm; keeps critical tokens far
+  better than attention heuristics but less than keynorm.
+- v1.1 (λ_task=3) negative (E-008).
+
 ## In progress
-- Trace collection run (train ~96 + val 20 traces at 2K/4K/8K) — background.
-- Next: full PPO training run → real-model evaluation (E-proxy + task suite) → benchmark → dashboard.
+- Benchmark run (latency/memory vs context), long-context eval (8K/16K), re-bench with the
+  faster decode loop; README results injection; ablations rerun (from scratch, 8K steps).
 
 ## Measured facts to remember
 - MPS fp16 vs bf16: 2.6× faster (D-004). enable_gqa vs repeat_kv: 4–25× faster attention on MPS.
