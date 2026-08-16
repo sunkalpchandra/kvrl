@@ -71,6 +71,7 @@ def main() -> int:
     ap.add_argument("--steps", type=int, default=20000)
     ap.add_argument("--only", default=None, help="comma-separated ablation groups")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--no-warm", action="store_true", help="train every variant from scratch (fair for feature ablations)")
     args = ap.parse_args()
     groups = args.only.split(",") if args.only else list(ABLATIONS)
     results = []
@@ -81,6 +82,8 @@ def main() -> int:
             cfg["training"]["eval_every_updates"] = 1000  # only the final eval
             cfg["seed"] = args.seed
             cfg["checkpoint_name"] = f"ablate_{g}_{name}"
+            if args.no_warm:
+                cfg["rl"]["init_from"] = None
             # apply delta (shallow per section)
             for sec, vals in delta.items():
                 cfg.setdefault(sec, {}).update(vals)
