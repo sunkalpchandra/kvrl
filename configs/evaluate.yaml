@@ -1,4 +1,5 @@
 # Real-model evaluation over the long-context task suite (Phase 9 / demo numbers).
+# v2 matrix (2026-08-16): more prompts, more graded tasks, regressor + rl v1.2 controllers.
 model:
   name: qwen2.5-0.5b-instruct
   device: auto
@@ -20,12 +21,14 @@ eval:
     - {name: snapkv}
     - {name: h2o}
     - {name: keynorm}
-    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1.pt}
-  jobs:                       # 26 prompts × (1 full + 3 budgets × 6 controllers) = 494 real runs
-    - {task: needle,     tokens: 2048, n: 4}
-    - {task: kv,         tokens: 2048, n: 4}
-    - {task: multihop,   tokens: 2048, n: 4}
-    - {task: dependency, tokens: 2048, n: 4}
-    - {task: code,       tokens: 2048, n: 4}
+    - {name: regressor, checkpoint: checkpoints/regressor_v1.pt}
+    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1.pt, label: rl_v1}
+    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1_2.pt, label: rl}
+  jobs:                       # 44 prompts × (1 full + 3 budgets × 8 controllers) = 1100 real runs
+    - {task: needle,     tokens: 2048, n: 8}
+    - {task: kv,         tokens: 2048, n: 8}
+    - {task: multihop,   tokens: 2048, n: 8}
+    - {task: dependency, tokens: 2048, n: 6}
+    - {task: code,       tokens: 2048, n: 6}
     - {task: lm,         tokens: 2048, n: 4}
-    - {task: needle,     tokens: 4096, n: 2}
+    - {task: needle,     tokens: 4096, n: 4}
