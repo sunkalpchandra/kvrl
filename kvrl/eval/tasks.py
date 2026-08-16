@@ -279,6 +279,46 @@ def gen_needle(
     return out
 
 
+_KV_WORDS = [
+    "harbor",
+    "lantern",
+    "meadow",
+    "copper",
+    "willow",
+    "falcon",
+    "marble",
+    "cinder",
+    "orchid",
+    "quartz",
+    "saffron",
+    "thistle",
+    "velvet",
+    "walnut",
+    "amber",
+    "birch",
+    "cobalt",
+    "dune",
+    "ember",
+    "fjord",
+    "garnet",
+    "heather",
+    "ivory",
+    "juniper",
+    "kestrel",
+    "lichen",
+    "maple",
+    "nettle",
+    "onyx",
+    "pebble",
+    "raven",
+    "sable",
+    "tundra",
+    "umber",
+    "violet",
+    "wren",
+]
+
+
 def gen_kv(
     n: int,
     target_tokens: int,
@@ -287,48 +327,48 @@ def gen_kv(
     count_tokens: CountFn,
     n_pairs: int | None = None,
 ) -> list[TaskInstance]:
-    """Structured key→value store; the haystack *is* the distractor set (no prose)."""
+    """Key→value retrieval: a block of word-keyed records embedded in prose.
+
+    v1 used ~200 numeric keys with no prose; the full-cache 0.5B model solved 1/4 (E-007), so
+    the task could not discriminate controllers. Now: ``n_pairs`` (default 40) records with
+    two-word keys, prose before and after, the question at the end. The record line is critical.
+    """
     rng = random.Random(seed)
     out = []
-    for _i in range(n):
-        # each line ≈ 20 tokens; leave room for instructions
-        pairs = n_pairs or max(8, (target_tokens - 64) // 10)
-        keys = [
-            f"{rng.choice(['ord', 'usr', 'ref', 'ses', 'doc'])}-{rng.randint(10000, 99999)}"
-            for _ in range(pairs)
-        ]
+    for _ in range(n):
+        pairs = n_pairs or 40
+        keys: list[str] = []
+        while len(keys) < pairs:
+            k = f"{rng.choice(_KV_WORDS)}-{rng.choice(_KV_WORDS)}"
+            if k not in keys:
+                keys.append(k)
         vals = [_code(rng) for _ in range(pairs)]
-        lines = [f"key: {k} -> value: {v}" for k, v in zip(keys, vals)]
+        lines = [f"record {k}: {v}" for k, v in zip(keys, vals)]
         target_idx = rng.randrange(pairs)
-        while count_tokens("\n".join(lines)) > target_tokens - 48 and len(lines) > 8:
-            drop = rng.randrange(len(lines))
-            if drop == target_idx:
-                continue
-            lines.pop(drop)
-            keys.pop(drop)
-            vals.pop(drop)
-            if drop < target_idx:
-                target_idx -= 1
-        head = "Below is a list of key/value records.\n\n"
-        body = "\n".join(lines)
+        block = "Records:\n" + "\n".join(lines) + "\n"
         q = (
-            f"\n\nQuestion: What is the value for key {keys[target_idx]}? "
+            f"\n\nQuestion: In the records above, what is the value of record {keys[target_idx]}? "
             f"Answer with just the value."
         )
-        prompt = head + body + q
+        reserve = count_tokens(block + q) + 8
+        hay = _fit_filler(filler, target_tokens, count_tokens, reserve)
+        depth = rng.uniform(0.1, 0.9)
+        ctx, _span = _insert_at_depth(hay, block, depth)
+        prompt = ctx + q
         line = lines[target_idx]
-        s = prompt.index(line)
+        st = prompt.index(line)
         out.append(
             TaskInstance(
                 "kv",
                 prompt,
                 [vals[target_idx]],
-                [(s, s + len(line))],
+                [(st, st + len(line))],
                 {
-                    "depth": target_idx / max(1, len(lines) - 1),
-                    "n_pairs": len(lines),
+                    "depth": depth,
+                    "n_pairs": pairs,
                     "target_tokens": target_tokens,
                     "seed": seed,
+                    "filler": filler.source,
                 },
                 max_new_tokens=12,
             )
@@ -398,12 +438,16 @@ def gen_dependency(
     seed: int,
     filler: Filler,
     count_tokens: CountFn,
-    chain_len: int = 4,
+    chain_len: int = 3,
     n_distractors: int = 6,
+    arithmetic: bool = False,
 ) -> list[TaskInstance]:
-    """Variable chains: x0 = c; x1 = x0 + d1; ... ; question asks the final value.
+    """Variable chains: x0 = c; x1 = x0 (+ d1 if arithmetic); ... ; question asks the final value.
 
-    Every chain sentence is critical; distractor assignments are not.
+    Every chain sentence is critical; distractor assignments are not. The default is a pure
+    copy chain ("Set beta to alpha.") because the 0.5B model cannot do arithmetic chains even
+    with a full cache (E-007: 0/4) — a task at the model's ceiling cannot discriminate
+    controllers. ``arithmetic=True`` restores the harder variant.
     """
     rng = random.Random(seed)
     names = [
@@ -433,10 +477,13 @@ def gen_dependency(
         val = rng.randint(3, 40)
         sents = [f"Set {chain[0]} to {val}."]
         for j in range(1, chain_len):
-            d = rng.randint(1, 9)
-            op = rng.choice(["plus", "minus"])
-            val = val + d if op == "plus" else val - d
-            sents.append(f"Set {chain[j]} to {chain[j - 1]} {op} {d}.")
+            if arithmetic:
+                d = rng.randint(1, 9)
+                op = rng.choice(["plus", "minus"])
+                val = val + d if op == "plus" else val - d
+                sents.append(f"Set {chain[j]} to {chain[j - 1]} {op} {d}.")
+            else:
+                sents.append(f"Set {chain[j]} to the same value as {chain[j - 1]}.")
         dsents = [f"Set {v} to {rng.randint(1, 60)}." for v in distract]
         question = (
             f"\n\nQuestion: Following the assignments above, what is the value of "

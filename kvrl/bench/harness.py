@@ -160,20 +160,20 @@ def decode_vs_cache_length(
             if model.device.type == "mps" and (s // 256) % 8 == 7:
                 empty_cache(model.device)
         empty_cache(model.device)
-        tok = ids[-1:]
+        tok = ids[-1:].to(model.device)
         s = Samples()
         for r in range(repeats + 1):
-            import copy
-
-            c = copy.deepcopy(cache)
+            # decode n tokens then crop the cache back to L (deepcopy of a 16K cache per repeat
+            # was itself the "16K cliff" measured earlier: 4 x 192 MB copies through MPS)
             synchronize(model.device)
             t0 = time.perf_counter()
             for i in range(n_decode):
-                model.forward_chunk(tok, torch.tensor([L + i]), c)
+                model.forward_chunk(tok, torch.tensor([L + i], device=model.device), cache)
             synchronize(model.device)
             if r > 0:
                 s.add(1000 * (time.perf_counter() - t0) / n_decode)
-            del c
+            cache.crop(-n_decode)  # negative = drop the decoded tokens (positive is deprecated)
+            assert cache.get_seq_length() == L
         summ = s.summary()
         rows.append(
             {

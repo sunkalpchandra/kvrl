@@ -69,6 +69,8 @@ def test_dependency_answer_is_consistent():
         w = s.rstrip(".").split()
         if len(w) == 4:  # Set X to N.
             env[w[1]] = int(w[3])
+        elif "same" in w:  # Set X to the same value as Y.
+            env[w[1]] = env[w[-1]]
         else:  # Set X to Y plus/minus D.
             env[w[1]] = env[w[3]] + int(w[5]) * (1 if w[4] == "plus" else -1)
         val = env[w[1]]
