@@ -45,6 +45,8 @@ class StatsBuffer:
     # -- consumption ---------------------------------------------------------------------
     def normalized(self, kv_len: int) -> torch.Tensor:
         """[n_layers, kv_len] attention fraction per slot for the accumulated queries."""
+        if kv_len > self.max_slots:  # stats disabled -> buffer never grew via add() (BUG-002)
+            self.grow(kv_len)
         denom = max(1, self.n_heads * self.n_queries)
         return self.mass[:, :kv_len] / denom
 
@@ -54,6 +56,8 @@ class StatsBuffer:
 
     def compact(self, keep_slots: torch.Tensor, kv_len: int) -> None:
         """Keep only ``keep_slots`` (sorted LongTensor over the first ``kv_len`` slots)."""
+        if kv_len > self.max_slots:
+            self.grow(kv_len)
         k = keep_slots.to(self.device)
         n = k.numel()
         kept = self.mass[:, :kv_len].index_select(1, k)

@@ -126,3 +126,16 @@ def test_budget_from_fraction():
     assert budget_from_fraction(1.0, 8000) == 1 << 30
     assert budget_from_fraction(0.25, 8000, chunk=64) == 2048
     assert budget_from_fraction(0.01, 8000, chunk=64, min_tokens=128) == 128
+
+
+def test_stats_buffer_grows_when_stats_disabled(tiny):
+    """Regression (BUG-002): full-cache run longer than the stats buffer with stats OFF."""
+    from kvrl.cache.stats import StatsBuffer
+
+    tiny.stats = StatsBuffer(tiny.info.n_layers, tiny.info.n_heads, 64, "cpu")
+    ids = _prompt(300, seed=5)
+    eng = InferenceEngine(tiny, chunk_size=32, decide_every=32)
+    res = eng.run(ids, make_controller("window"), budget=200, max_new_tokens=8, stop_on_eos=False)
+    assert res.final_cache_len <= 200 + 32
+    res2 = eng.run(ids, make_controller("full"), budget=1 << 30, max_new_tokens=8, stop_on_eos=False)
+    assert res2.final_cache_len == 300 + 7
