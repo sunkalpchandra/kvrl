@@ -152,10 +152,15 @@ with real ΔNLL (Spearman 0.36); the layer-max variant correlates much better (0
 within each budget), which is why the reward uses layer-max attention (D-009). Averaging over
 layers hides the few heads that do retrieval.
 
-**Hardware.** KV memory is bounded exactly by the budget (peak = budget + one chunk); latency
-gains at these context lengths on this laptop are small because the 0.5B model's decode is
-dominated by weight reads, not KV reads (see the measured decode-vs-cache-length curve). The
-mechanism, not the absolute number, is what transfers.
+**Hardware.** KV memory is bounded exactly by the budget (peak = budget + one chunk). On this
+0.5B model decode is dominated by weight reads, so latency gains from a smaller cache are small
+at ≤4K context (see the measured decode-vs-cache-length curve) — the mechanism, not the
+absolute number, is what transfers. The most important hardware effect we hit was not the
+model at all: on MPS the caching allocator kept every freed attention buffer of the chunked
+prefill (7.7 GB reserved vs 0.9 GB allocated after 8K tokens on an 8 GB machine), the OS
+swapped, and full-cache decode at 8K crawled to ~1.2 s/token; releasing the pool every 8
+chunks fixed it (57 ms/token) with no prefill cost (BUG-003, D-010). A 25 % cache never came
+near that cliff (1.1 GB reserved).
 
 ## 7. Results tables and figures
 
@@ -358,10 +363,9 @@ Measured facts that shaped the implementation (Apple M2, 8 GB, torch 2.13, trans
   assumed, and it can hide a few retrieval heads (layer-max variant is an ablation).
 - Batch size 1; contexts up to 8K–16K are practical here (32K only via chunked prefill).
 - Latency numbers on this machine are noisy (memory pressure from other apps; swap in use);
-  the harness reports medians and IQRs over repeats, and the full-cache decode measurements at
-  8K–16K include a memory cliff (≈1.7 s/token at 16K) that is this laptop swapping, not the
-  model. Attention-statistics controllers (H2O, SnapKV, RL) pay for the statistics pass
-  (~1.5–2× prefill time vs the plain path here); key-norm and window do not.
+  the harness reports medians and IQRs over repeats. Attention-statistics controllers (H2O,
+  SnapKV, RL) pay for the statistics pass (~1.5–2× prefill time vs the plain path here);
+  key-norm and window do not.
 - The evaluation is small (26 prompts, 22 graded) because each real run costs seconds to
   minutes on this machine; several tasks are at the 0.5B model's ceiling even with a full
   cache (kv 0.25, dependency 0.0), so they do not discriminate controllers.
