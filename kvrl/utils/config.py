@@ -12,6 +12,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -55,11 +56,23 @@ def get_dotted(cfg: dict, dotted: str, default: Any = None) -> Any:
     return cur
 
 
+_NUM_RE = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$")
+
+
+def parse_scalar(v: str) -> Any:
+    """YAML scalar parsing, but tolerant of scientific notation like ``1e-4``
+    (YAML 1.1 reads that as a string)."""
+    out = yaml.safe_load(v)
+    if isinstance(out, str) and _NUM_RE.match(out.strip()):
+        return float(out)
+    return out
+
+
 def parse_override(s: str) -> tuple[str, Any]:
     if "=" not in s:
         raise ValueError(f"override must look like key.sub=value, got {s!r}")
     k, v = s.split("=", 1)
-    return k.strip(), yaml.safe_load(v)
+    return k.strip(), parse_scalar(v)
 
 
 def load_config(path: str | Path | None, overrides: list[str] | None = None,
