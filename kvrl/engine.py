@@ -12,11 +12,12 @@ from __future__ import annotations
 
 import math
 import time
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 
 import torch
 
-from kvrl.cache.view import KVCacheView
+from kvrl.cache.view import CacheState, KVCacheView
 from kvrl.controllers.base import KVCacheController
 from kvrl.models.hf_model import HFCausalLM
 from kvrl.utils.device import PeakTracker, memory_stats, synchronize
@@ -99,6 +100,8 @@ class InferenceEngine:
         record_importance: bool = False,
         episode: int = 0,
         stop_on_eos: bool = True,
+        on_state: Callable[[CacheState], None] | None = None,
+        force_stats: bool = False,
     ) -> GenerationResult:
         """Run one prompt.
 
@@ -106,11 +109,13 @@ class InferenceEngine:
         max_new_tokens`` means the cache is never touched.
         forced_ids: teacher-forced continuation (scored, not sampled) — processed in chunks;
         gives the NLL of a fixed continuation under this controller/budget.
+        on_state: called with every decision-step CacheState (trace collection / analysis).
+        force_stats: capture attention statistics even if the controller does not need them.
         """
         model = self.model
         prompt_ids = prompt_ids.flatten().to(self.device)
         n_prompt = int(prompt_ids.numel())
-        stats_on = bool(getattr(controller, "needs_attention", False))
+        stats_on = bool(getattr(controller, "needs_attention", False)) or force_stats
         model.set_stats(stats_on)
         model.stats.reset()
         view = KVCacheView(model, n_sink=self.n_sink)
@@ -141,20 +146,21 @@ class InferenceEngine:
                 max_new_tokens=max_new_tokens,
                 accumulate=True,
             )
+            if on_state is not None:
+                on_state(state)
             if n_before <= budget:
                 # nothing to evict; controllers with per-slot memory still see the state
-                controller.on_compact(torch.arange(n_before, device=self.device), n_before)
+                controller.on_compact(torch.arange(n_before), n_before)
                 step += 1
                 return
             t0 = self._sync_time()
-            keep = controller.decide(state, budget)
+            keep = controller.decide(state, budget).detach().cpu()
             t1 = self._sync_time()
             imp = None
             if record_importance and hasattr(controller, "importance"):
-                imp = controller.importance(state).float().index_select(0, keep.to(self.device))
-                imp = imp.detach().cpu().tolist()
-            evicted_mask = torch.ones(n_before, dtype=torch.bool, device=self.device)
-            evicted_mask[keep.to(self.device)] = False
+                imp = controller.importance(state).float().cpu().index_select(0, keep).tolist()
+            evicted_mask = torch.ones(n_before, dtype=torch.bool)
+            evicted_mask[keep] = False
             evicted_pos = view.positions[evicted_mask].tolist()
             view.compact(keep)
             controller.on_compact(keep, n_before)

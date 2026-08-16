@@ -59,22 +59,26 @@ class CacheState:
 
 
 class KVCacheView:
+    """Per-slot metadata lives on CPU (controllers run there); only the K/V tensors and the
+    stats buffer live on the model device. Norms/cosines for newly appended slots are
+    computed lazily, once per decision, to avoid per-token device round-trips."""
+
     def __init__(self, model: HFCausalLM, n_sink: int = 4):
         self.model = model
         self.info = model.info
         self.device = model.device
         self.cache = model.new_cache()
         self.n_sink = n_sink
-        z = torch.zeros(0, device=self.device)
-        self.positions = torch.zeros(0, dtype=torch.long, device=self.device)
-        self.chunk_id = torch.zeros(0, dtype=torch.long, device=self.device)
-        self.is_generated = torch.zeros(0, dtype=torch.bool, device=self.device)
-        self.attn_cum_mean = z.clone()
-        self.attn_cum_max = z.clone()
-        self.k_norm = z.clone()
-        self.v_norm = z.clone()
-        self.adj_cos = z.clone()
-        self._last_key: torch.Tensor | None = None  # [L, Hkv, d] last appended key (for adj_cos)
+        self.positions = torch.zeros(0, dtype=torch.long)
+        self.chunk_id = torch.zeros(0, dtype=torch.long)
+        self.is_generated = torch.zeros(0, dtype=torch.bool)
+        self.attn_cum_mean = torch.zeros(0)
+        self.attn_cum_max = torch.zeros(0)
+        self.k_norm = torch.zeros(0)
+        self.v_norm = torch.zeros(0)
+        self.adj_cos = torch.zeros(0)
+        self._pending = 0  # appended slots whose norms are not computed yet
+        self._last_key: torch.Tensor | None = None  # [L, Hkv, d] last appended key (adj_cos)
         self.total_evicted = 0
         self.total_appended = 0
 
@@ -91,55 +95,54 @@ class KVCacheView:
         return self.info.kv_bytes(self.n)
 
     # ------------------------------------------------------------------ append / stats
-    @torch.no_grad()
     def append(self, positions: torch.Tensor, is_generated: bool, step: int) -> None:
-        """Register ``q`` new slots after a forward pass appended them to the cache."""
+        """Register ``q`` new slots after a forward pass appended them to the cache (cheap)."""
         q = int(positions.numel())
-        n_before = self.n
-        self.assert_consistent_after_append(n_before + q)
-        keys = torch.stack(
-            [layer.keys[0, :, n_before : n_before + q, :] for layer in self.cache.layers]
-        )
-        vals = torch.stack(
-            [layer.values[0, :, n_before : n_before + q, :] for layer in self.cache.layers]
-        )
-        # [L, Hkv, q, d] -> norms averaged over layers and kv heads
-        k_norm = keys.float().norm(dim=-1).mean(dim=(0, 1))
-        v_norm = vals.float().norm(dim=-1).mean(dim=(0, 1))
-        # adjacent-key cosine within the new block (+ against the last previously appended key)
-        kf = keys.float()
-        prev = self._last_key
-        cos = torch.zeros(q, device=self.device)
-        if q > 1:
-            a, b = kf[:, :, 1:, :], kf[:, :, :-1, :]
-            cos[1:] = torch.nn.functional.cosine_similarity(a, b, dim=-1).mean(dim=(0, 1))
-        if prev is not None:
-            cos[0] = torch.nn.functional.cosine_similarity(kf[:, :, 0, :], prev, dim=-1).mean()
-        self._last_key = kf[:, :, -1, :].clone()
-        dev = self.device
-        self.positions = torch.cat([self.positions, positions.to(dev)])
-        self.chunk_id = torch.cat(
-            [self.chunk_id, torch.full((q,), step, dtype=torch.long, device=dev)]
-        )
+        self.positions = torch.cat([self.positions, positions.detach().cpu().long()])
+        self.chunk_id = torch.cat([self.chunk_id, torch.full((q,), step, dtype=torch.long)])
         self.is_generated = torch.cat(
-            [self.is_generated, torch.full((q,), is_generated, dtype=torch.bool, device=dev)]
+            [self.is_generated, torch.full((q,), is_generated, dtype=torch.bool)]
         )
-        self.attn_cum_mean = torch.cat([self.attn_cum_mean, torch.zeros(q, device=dev)])
-        self.attn_cum_max = torch.cat([self.attn_cum_max, torch.zeros(q, device=dev)])
-        self.k_norm = torch.cat([self.k_norm, k_norm])
-        self.v_norm = torch.cat([self.v_norm, v_norm])
-        self.adj_cos = torch.cat([self.adj_cos, cos])
+        self._pending += q
         self.total_appended += q
 
-    def assert_consistent_after_append(self, expected: int) -> None:
-        lens = cache_lengths(self.cache)
-        assert all(l == expected for l in lens), f"cache lengths {lens} != expected {expected}"
+    @torch.no_grad()
+    def _materialize_pending(self) -> None:
+        """Compute K/V norms + adjacent-key cosine for slots appended since the last call."""
+        q = self._pending
+        n = self.n
+        self.assert_consistent()
+        if q == 0:
+            return
+        s0 = n - q
+        keys = torch.stack([layer.keys[0, :, s0:n, :] for layer in self.cache.layers]).float()
+        vals = torch.stack([layer.values[0, :, s0:n, :] for layer in self.cache.layers]).float()
+        k_norm = keys.norm(dim=-1).mean(dim=(0, 1))  # [q]
+        v_norm = vals.norm(dim=-1).mean(dim=(0, 1))
+        cos = torch.zeros(q, device=self.device)
+        if q > 1:
+            cos[1:] = torch.nn.functional.cosine_similarity(
+                keys[:, :, 1:, :], keys[:, :, :-1, :], dim=-1
+            ).mean(dim=(0, 1))
+        if self._last_key is not None:
+            cos[0] = torch.nn.functional.cosine_similarity(
+                keys[:, :, 0, :], self._last_key, dim=-1
+            ).mean()
+        self._last_key = keys[:, :, -1, :].clone()
+        block = torch.stack([k_norm, v_norm, cos]).cpu()  # one transfer
+        self.k_norm = torch.cat([self.k_norm, block[0]])
+        self.v_norm = torch.cat([self.v_norm, block[1]])
+        self.adj_cos = torch.cat([self.adj_cos, block[2]])
+        self.attn_cum_mean = torch.cat([self.attn_cum_mean, torch.zeros(q)])
+        self.attn_cum_max = torch.cat([self.attn_cum_max, torch.zeros(q)])
+        self._pending = 0
 
     def chunk_attention(self) -> tuple[torch.Tensor, torch.Tensor]:
-        """(layer-mean, layer-max) attention fraction per slot from the stats buffer."""
+        """(layer-mean, layer-max) attention fraction per slot from the stats buffer (CPU)."""
         n = self.n
-        frac = self.model.stats.normalized(n)  # [L, n]
-        return frac.mean(dim=0), frac.max(dim=0).values
+        frac = self.model.stats.normalized(n)  # [L, n] on device
+        both = torch.stack([frac.mean(dim=0), frac.max(dim=0).values]).cpu()
+        return both[0], both[1]
 
     def state(
         self,
@@ -153,8 +156,9 @@ class KVCacheView:
         max_new_tokens: int,
         accumulate: bool = True,
     ) -> CacheState:
-        """Snapshot for the controller. If ``accumulate``, fold this chunk's attention into
-        the cumulative statistics and reset the stats buffer (call once per decision)."""
+        """Snapshot for the controller (CPU tensors). If ``accumulate``, fold this chunk's
+        attention into the cumulative statistics and reset the stats buffer (once per decision)."""
+        self._materialize_pending()
         mean, lmax = self.chunk_attention()
         if accumulate:
             self.attn_cum_mean = self.attn_cum_mean + mean
@@ -184,13 +188,16 @@ class KVCacheView:
     # ------------------------------------------------------------------ eviction
     @torch.no_grad()
     def compact(self, keep_slots: torch.Tensor) -> int:
-        """Physically keep only ``keep_slots``; returns number evicted."""
+        """Physically keep only ``keep_slots`` (any device); returns number evicted."""
+        self._materialize_pending()
         n = self.n
-        keep = validate_keep(keep_slots, n).to(self.device)
+        keep = validate_keep(keep_slots.detach().cpu(), n)
         n_evict = n - int(keep.numel())
         if n_evict == 0:
             return 0
-        compact_cache(self.cache, keep)
+        keep_dev = keep.to(self.device)
+        compact_cache(self.cache, keep_dev)
+        self.model.stats.compact(keep_dev, n)
         for name in (
             "positions",
             "chunk_id",
@@ -202,7 +209,6 @@ class KVCacheView:
             "adj_cos",
         ):
             setattr(self, name, getattr(self, name).index_select(0, keep))
-        self.model.stats.compact(keep, n)
         self.total_evicted += n_evict
         self.assert_consistent()
         return n_evict
