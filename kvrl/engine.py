@@ -237,6 +237,7 @@ class InferenceEngine:
             else:
                 next_tok = int(logits[0, -1].argmax().item())
                 lp = torch.log_softmax(logits[0, -1].float(), dim=-1)[next_tok].item()
+                since_decision = 0
                 for t in range(max_new_tokens):
                     generated.append(next_tok)
                     logprobs.append(lp)
@@ -252,13 +253,20 @@ class InferenceEngine:
                     view.append(positions, is_generated=True, step=step)
                     alive.append(True)
                     pos += 1
-                    if (t + 1) % self.decide_every == 0:
+                    since_decision += 1
+                    if since_decision == self.decide_every:
                         timings["decode_s"] += self._sync_time() - t_start
-                        decide(n_new=self.decide_every, phase=1, ctx_len=pos)
+                        decide(n_new=since_decision, phase=1, ctx_len=pos)
+                        since_decision = 0
                         t_start = self._sync_time()
                         peak_mem.sample()
                     next_tok = int(logits[0, -1].argmax().item())
                     lp = torch.log_softmax(logits[0, -1].float(), dim=-1)[next_tok].item()
+                if since_decision > 0:
+                    # final flush: lets tracing/analysis see the last decode tokens' attention
+                    timings["decode_s"] += self._sync_time() - t_start
+                    decide(n_new=since_decision, phase=1, ctx_len=pos)
+                    t_start = self._sync_time()
             timings["decode_s"] += self._sync_time() - t_start
             peak_len = max(peak_len, view.n)
         timings["total_s"] = sum(v for k, v in timings.items() if k != "total_s")
