@@ -279,10 +279,10 @@ Fitted decode cost model (pre-cliff points): 31.80 ms/token + 2.485 ms per 1K ca
 | 8192 | 57.5 | 45.9–60.0 |
 | 16384 | 1695.4 | 1475.5–1732.1 |
 
-### PPO training — run `20260816-042218-train-47d2c15626`
+### PPO training — run `20260816-032826-train-d115d477aa`
 
-- updates 39, decision steps 40642, episodes 1229, train time 2352.7 s, policy params 20097
-- best val lost-mass (decode, sim): 0.7148168385028839
+- updates 58, decision steps 60452, episodes 1837, train time 2567.7 s, policy params 20097
+- best val lost-mass (decode, sim): 0.10111077626546223
 
 Sim lost-mass (decode) on val traces, deterministic policies:
 
@@ -291,7 +291,7 @@ Sim lost-mass (decode) on val traces, deterministic policies:
 | h2o          |  0.1568 | 0.1116 | 0.0576 |
 | oracle       |  0.1189 | 0.0777 | 0.0344 |
 | random       |  0.1894 | 0.1590 | 0.0985 |
-| rl           |  0.1506 | 0.1069 | 0.0539 |
+| rl           |  0.1476 | 0.1036 | 0.0521 |
 | snapkv       |  0.1528 | 0.1058 | 0.0515 |
 | window       |  0.1805 | 0.1476 | 0.1016 |
 <!-- RESULTS:END -->
