@@ -112,7 +112,8 @@ def pareto(run_id: str | None = None):
     runs_ = [r for r in runs_ if (Path(r["dir"]) / "results.parquet").exists()]
     if not runs_:
         return {"points": [], "run_id": None}
-    r = runs_[-1]
+    # primary = the largest evaluation (most rows), consistent with scripts/make_report.py
+    r = max(runs_, key=lambda x: (Path(x["dir"]) / "results.parquet").stat().st_size)
     df = pd.read_parquet(Path(r["dir"]) / "results.parquet")
     pts = []
     for (c, b), g in df.groupby(["controller", "budget_frac"]):
