@@ -3,8 +3,9 @@ import { isStatic } from "./api";
 import { Live } from "./pages/Live";
 import { ParetoPage } from "./pages/Pareto";
 import { Experiments } from "./pages/Experiments";
+import { Bench } from "./pages/Bench";
 
-const PAGES = [["live", "Live demo"], ["pareto", "Pareto frontier"], ["experiments", "Experiments"]] as const;
+const PAGES = [["live", "Live demo"], ["pareto", "Pareto frontier"], ["bench", "Latency & memory"], ["experiments", "Experiments"]] as const;
 
 export default function App() {
   const [page, setPage] = useState<string>(() => location.hash.replace("#", "") || "live");
@@ -24,6 +25,7 @@ export default function App() {
       </header>
       {page === "live" && <Live isStatic={stat} />}
       {page === "pareto" && <ParetoPage />}
+      {page === "bench" && <Bench />}
       {page === "experiments" && <Experiments />}
       <footer className="mt-10 border-t border-zinc-800 pt-3 text-xs text-zinc-600">github.com/sunkalpchandra/kvrl · numbers are never hard-coded: they come from runs/ or a live inference in this session</footer>
     </div>

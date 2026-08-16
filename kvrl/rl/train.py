@@ -148,8 +148,12 @@ def train(cfg: dict, run: Run, log=print) -> dict:
         from kvrl.controllers.learned import load_policy_checkpoint
 
         _p, _f, _ck = load_policy_checkpoint(init_from)
-        consts = {"k_norm_mean": _f.k_norm_mean, "k_norm_std": _f.k_norm_std,
-                  "v_norm_mean": _f.v_norm_mean, "v_norm_std": _f.v_norm_std}
+        consts = {
+            "k_norm_mean": _f.k_norm_mean,
+            "k_norm_std": _f.k_norm_std,
+            "v_norm_mean": _f.v_norm_mean,
+            "v_norm_std": _f.v_norm_std,
+        }
         log(f"[train] warm start from {init_from} ({_ck.get('kind')})")
     fcfg = FeatureConfig(
         **consts,
