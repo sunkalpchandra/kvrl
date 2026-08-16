@@ -118,10 +118,43 @@ variable-assignment dependency chains, questions about this repository's own sou
 filler. Metrics: accuracy, ΔNLL, output fidelity vs the full-cache generation (ROUGE-L,
 prefix agreement), KV bytes (peak/final), latency breakdown, paired bootstrap CIs per prompt.
 
-## 6. Results
+## 6. Findings (real model, Apple M2, fp16 — every number from a tracked run)
+
+**What the learned controller does well.** On the real model, the PPO policy beats every
+attention-based heuristic (H2O, SnapKV, sliding window) and random eviction at all three
+budgets on both task accuracy and NLL, with paired per-prompt NLL differences vs H2O
+significant at 25 % and 50 % budget (E-007). Its decision cost is ~0.07 s per prompt (≈1.5 %
+of model time). In the simulator it is the best non-oracle controller on lost attention mass
+(0.109 vs SnapKV 0.119, H2O 0.122, oracle 0.082 at 25 %), *including 8K-token traces it never
+trained on* (trained on ≤4K).
+
+**What beats it, and why.** A one-line heuristic — evict the tokens with the largest key
+norm — is better than the RL policy on this suite (accuracy 0.273 vs 0.136 at 25 %, NLL 0.763
+vs 0.783; the accuracy gap is not significant at n = 22 graded prompts). The reason is visible
+in the failure analysis: in a *streaming* setting the needle is evicted during prefill,
+before the question arrives, by anything that ranks on attention received so far (H2O,
+SnapKV, window all score 0 on needle at 25 %), whereas needle tokens have small key norms and
+survive key-norm eviction almost perfectly. The RL policy discovered the same signal — key
+norm is by far its most important feature by permutation importance — and retains critical
+tokens far better than the attention heuristics (0.49 vs H2O 0.34, SnapKV 0.08 in sim) but not
+as well as pure key-norm (0.73). Its reward is attention mass, which does not fully reward
+keeping a needle nobody has attended to yet; a larger terminal task term did not fix that
+(E-008).
+
+**Proxy validation.** The simulator's layer-mean lost attention mass correlates only weakly
+with real ΔNLL (Spearman 0.36); the layer-max variant correlates much better (0.59; 0.65–0.71
+within each budget), which is why the reward uses layer-max attention (D-009). Averaging over
+layers hides the few heads that do retrieval.
+
+**Hardware.** KV memory is bounded exactly by the budget (peak = budget + one chunk); latency
+gains at these context lengths on this laptop are small because the 0.5B model's decode is
+dominated by weight reads, not KV reads (see the measured decode-vs-cache-length curve). The
+mechanism, not the absolute number, is what transfers.
+
+## 7. Results tables and figures
 
 Regenerate with `python scripts/make_report.py` (figures in `docs/figures/`, tables in
-`docs/results.md`). The tables below are copied verbatim from that file at the commit noted.
+`docs/results.md`); `scripts/update_readme_results.py` copies them below verbatim.
 
 <!-- RESULTS:BEGIN -->
 _Results are being produced by the tracked runs listed in `.claude/context/EXPERIMENTS.md`;
@@ -134,7 +167,7 @@ Measured facts that shaped the implementation (Apple M2, 8 GB, torch 2.13, trans
 - `scaled_dot_product_attention(enable_gqa=True)` is 4–25× faster than expanding K/V for grouped-query attention on MPS (decode at 8K: 0.15 vs 4.06 ms per layer) with bit-identical output.
 - Capturing attention statistics (the "dual" path) costs ≈ 3× the fused attention at 2K context; it is on only for attention-based controllers and reported separately.
 
-## 7. Limitations (honest)
+## 8. Limitations (honest)
 
 - One small model on one laptop: absolute memory savings are small by construction
   (96 MB of KV at 8K vs ~1 GB of weights); what transfers is the ratio and the mechanism.
@@ -147,7 +180,7 @@ Measured facts that shaped the implementation (Apple M2, 8 GB, torch 2.13, trans
 - Latency numbers on this machine are noisy (memory pressure); the harness reports medians
   and IQRs over repeats.
 
-## 8. Reproduce
+## 9. Reproduce
 
 ```bash
 ./setup.sh                                   # venv (reuses system torch if present) + deps
@@ -167,7 +200,7 @@ uvicorn kvrl.server.app:app --port 8000 & (cd frontend && npm install && npm run
 CPU-only development works end to end with the `tiny-random` model (all fast tests) and with
 the real model on CPU (slow). CUDA works through the same device abstraction (untested here).
 
-## 9. Layout
+## 10. Layout
 
 ```
 kvrl/models      HF wrapper, registered "kvrl" attention (own causal mask, enable_gqa, dual stats), registry
@@ -187,7 +220,7 @@ tests/           unit + integration + regression (+ slow real-model tests)
 .claude/         persistent engineering context (architecture, decisions, experiments, bugs)
 ```
 
-## 10. Acknowledgements
+## 11. Acknowledgements
 
 Ideas this project builds on: attention sinks / StreamingLLM (Xiao et al. 2023), H2O (Zhang
 et al. 2023), SnapKV (Li et al. 2024), TOVA (Oren et al. 2024), Scissorhands (Liu et al. 2023),
