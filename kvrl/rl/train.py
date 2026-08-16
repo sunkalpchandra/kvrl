@@ -202,7 +202,14 @@ def train(cfg: dict, run: Run, log=print) -> dict:
         ratio_mode=rl.get("ratio_mode", "per_slot"),
     )
     if init_from:
-        policy.load_state_dict(_p.state_dict())
+        same_shape = all(
+            k in policy.state_dict() and policy.state_dict()[k].shape == v.shape
+            for k, v in _p.state_dict().items()
+        ) and len(policy.state_dict()) == len(_p.state_dict())
+        if same_shape:
+            policy.load_state_dict(_p.state_dict())
+        else:
+            log("[train] warm start skipped: architecture/feature dims differ from checkpoint")
     algo = PPO(policy, value, ppo_cfg, device=device)
     use_priv = bool(rl.get("privileged_critic", True))
     n_value_params = sum(p.numel() for p in value.parameters())
