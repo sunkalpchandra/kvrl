@@ -129,6 +129,19 @@ class PPO:
             adv_all = (adv_all - adv_all.mean()) / (adv_all.std() + 1e-8)
         n = len(buf)
         idx_all = np.arange(n)
+        # pad the whole buffer once (fp32) and slice minibatches by index
+        tok_all, glob_all, valid_all, cand_all, ev_all = pad_batch(
+            [t.tok for t in buf.items],
+            [t.glob for t in buf.items],
+            [t.cand for t in buf.items],
+            [t.evict for t in buf.items],
+            device=self.device,
+        )
+        priv_all = torch.stack([t.priv for t in buf.items]).to(self.device)
+        old_lp_all = torch.zeros_like(ev_all, dtype=torch.float32)
+        for i, t in enumerate(buf.items):
+            old_lp_all[i, : t.logp_old.numel()] = t.logp_old.to(self.device)
+        old_v_all = torch.tensor([t.value for t in buf.items], device=self.device)
         stats = {
             "policy_loss": [],
             "value_loss": [],
@@ -136,6 +149,8 @@ class PPO:
             "approx_kl": [],
             "clipfrac": [],
             "ratio_max": [],
+            "grad_norm_policy": [],
+            "grad_norm_value": [],
         }
         stop = False
         epochs_done = 0
@@ -144,19 +159,12 @@ class PPO:
             np.random.shuffle(idx_all)
             for s in range(0, n, cfg.minibatch):
                 mb = idx_all[s : s + cfg.minibatch]
-                items = [buf.items[i] for i in mb]
-                tok, glob, valid, cand, ev = pad_batch(
-                    [t.tok for t in items],
-                    [t.glob for t in items],
-                    [t.cand for t in items],
-                    [t.evict for t in items],
-                    device=self.device,
-                )
-                priv = torch.stack([t.priv for t in items]).to(self.device)
-                old_lp = torch.zeros_like(ev, dtype=torch.float32)
-                for i, t in enumerate(items):
-                    old_lp[i, : t.logp_old.numel()] = t.logp_old.to(self.device)
-                old_v = torch.tensor([t.value for t in items], device=self.device)
+                mbt = torch.as_tensor(mb, device=self.device)
+                n_max = int(valid_all[mbt].sum(dim=1).max())
+                m_max = int((ev_all[mbt] >= 0).sum(dim=1).max().clamp_min(1))
+                tok, glob = tok_all[mbt, :n_max], glob_all[mbt]
+                valid, cand, ev = valid_all[mbt, :n_max], cand_all[mbt, :n_max], ev_all[mbt, :m_max]
+                priv, old_lp, old_v = priv_all[mbt], old_lp_all[mbt, :m_max], old_v_all[mbt]
                 adv = adv_all[mb].to(self.device)
                 ret = ret_all[mb].to(self.device)
                 scores = self.policy(tok, glob, valid)
@@ -180,10 +188,10 @@ class PPO:
                 loss = policy_loss + cfg.value_coef * value_loss - cfg.entropy_coef * ent_mean
                 self.opt.zero_grad()
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(
-                    list(self.policy.parameters()) + list(self.value.parameters()),
-                    cfg.max_grad_norm,
-                )
+                # clip policy and value gradients SEPARATELY: a joint norm is dominated by the
+                # (much larger) value-loss gradient and silently starves the policy update
+                gn_p = torch.nn.utils.clip_grad_norm_(self.policy.parameters(), cfg.max_grad_norm)
+                gn_v = torch.nn.utils.clip_grad_norm_(self.value.parameters(), cfg.max_grad_norm)
                 self.opt.step()
                 with torch.no_grad():
                     log_ratio = (lp - old_lp) * sm
@@ -195,6 +203,8 @@ class PPO:
                 stats["approx_kl"].append(approx_kl.item())
                 stats["clipfrac"].append(clipfrac.item())
                 stats["ratio_max"].append(ratio[slot_mask].max().item())
+                stats["grad_norm_policy"].append(float(gn_p))
+                stats["grad_norm_value"].append(float(gn_v))
                 if approx_kl.item() > 1.5 * cfg.target_kl:
                     stop = True
                     break

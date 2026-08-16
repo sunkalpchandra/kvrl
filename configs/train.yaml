@@ -31,12 +31,12 @@ rl:
   hidden: 128
   gamma: 0.99
   gae_lambda: 0.95
-  lr: 3.0e-4
-  lr_end: 3.0e-5
+  lr: 1.0e-3
+  lr_end: 1.0e-4
   clip: 0.2
-  entropy_coef: 0.01
+  entropy_coef: 0.001          # 0.01 fights learning: bonus ~ policy loss magnitude
   value_coef: 0.5
-  epochs: 4
+  epochs: 6
   minibatch: 128
   target_kl: 0.02
   ratio_mode: per_slot         # per_slot | sequence

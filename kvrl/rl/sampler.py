@@ -53,7 +53,9 @@ def sample_evict(
     if deterministic:
         g = s
     else:
-        u = torch.rand(s.shape, generator=generator, device=s.device).clamp_(1e-10, 1 - 1e-10)
+        gdev = generator.device if generator is not None else s.device
+        u = torch.rand(s.shape, generator=generator, device=gdev).to(s.device)
+        u = u.clamp_(1e-10, 1 - 1e-10)
         g = s - torch.log(-torch.log(u))
         g = g.masked_fill(~cand_mask, NEG)
     M = max(M, 1)
