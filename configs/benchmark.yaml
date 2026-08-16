@@ -9,7 +9,7 @@ benchmark:
   chunk: 64
   decide_every: 64
   warmup: 1
-  repeats: 3
+  repeats: 5                 # noisy laptop: medians of 5
   max_new_tokens: 32
   context_lengths: [1024, 2048, 4096, 8192]
   budget_fracs: [0.25]
@@ -17,5 +17,6 @@ benchmark:
     - {name: full}
     - {name: window}
     - {name: h2o}
-    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1.pt}
-  decode_curve_lengths: [512, 1024, 2048, 4096, 8192, 16384]
+    - {name: keynorm}
+    - {name: rl, checkpoint: checkpoints/ppo_mlp_v1_2.pt}
+  decode_curve_lengths: [512, 1024, 2048, 4096, 8192, 12288, 16384]
