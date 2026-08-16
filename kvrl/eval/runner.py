@@ -177,60 +177,64 @@ def summarize_results(df: pd.DataFrame) -> dict:
         rec["decode_tok_per_s"] = float(g["decode_tok_per_s"].median())
         table.append(rec)
     out["table"] = table
-    # paired comparisons vs full (nll) per controller/budget and RL vs h2o where present
+    # paired comparisons per prompt: accuracy and fidelity on graded tasks, NLL on lm only
     pairs = []
     key = ["task", "seed", "target_tokens"]
     full = df[df.controller == "full"].set_index(key)
+
+    def _pair(label, b, vs, a_df, b_df):
+        common = a_df.index.intersection(b_df.index)
+        lm = [k for k in common if k[0] == "lm"]
+        graded = [k for k in common if k[0] != "lm"]
+        if len(lm) >= 2:
+            pairs.append(
+                {
+                    "controller": label,
+                    "budget_frac": b,
+                    "vs": vs,
+                    "metric": "nll_lm",
+                    **paired_difference(
+                        a_df.loc[lm, "nll"].tolist(),
+                        b_df.loc[lm, "nll"].tolist(),
+                        lower_is_better=True,
+                    ),
+                }
+            )
+        if len(graded) >= 2:
+            pairs.append(
+                {
+                    "controller": label,
+                    "budget_frac": b,
+                    "vs": vs,
+                    "metric": "fidelity",
+                    **paired_difference(
+                        a_df.loc[graded, "fidelity"].tolist(), b_df.loc[graded, "fidelity"].tolist()
+                    ),
+                }
+            )
+            acc_a, acc_b = a_df.loc[graded, "correct"], b_df.loc[graded, "correct"]
+            ok = acc_a.notna() & acc_b.notna()
+            if int(ok.sum()) >= 2:
+                pairs.append(
+                    {
+                        "controller": label,
+                        "budget_frac": b,
+                        "vs": vs,
+                        "metric": "accuracy",
+                        **paired_difference(
+                            acc_a[ok].astype(float).tolist(), acc_b[ok].astype(float).tolist()
+                        ),
+                    }
+                )
+
     for (c, b), g in grp:
         if c == "full":
             continue
         gi = g.set_index(key)
-        common = gi.index.intersection(full.index)
-        if len(common) < 2:
-            continue
-        pairs.append(
-            {
-                "controller": c,
-                "budget_frac": b,
-                "vs": "full",
-                "metric": "nll",
-                **paired_difference(
-                    gi.loc[common, "nll"].tolist(), full.loc[common, "nll"].tolist()
-                ),
-            }
-        )
+        _pair(c, b, "full", gi, full)
         if "rl" in df.controller.values and c != "rl":
             rl = df[(df.controller == "rl") & (df.budget_frac == b)].set_index(key)
-            common2 = gi.index.intersection(rl.index)
-            if len(common2) >= 2:
-                a = rl.loc[common2]
-                bb = gi.loc[common2]
-                pairs.append(
-                    {
-                        "controller": "rl",
-                        "budget_frac": b,
-                        "vs": c,
-                        "metric": "nll",
-                        **paired_difference(
-                            a["nll"].tolist(), bb["nll"].tolist(), lower_is_better=True
-                        ),
-                    }
-                )
-                acc_a, acc_b = a["correct"].dropna(), bb["correct"].dropna()
-                ci = acc_a.index.intersection(acc_b.index)
-                if len(ci) >= 2:
-                    pairs.append(
-                        {
-                            "controller": "rl",
-                            "budget_frac": b,
-                            "vs": c,
-                            "metric": "accuracy",
-                            **paired_difference(
-                                acc_a.loc[ci].astype(float).tolist(),
-                                acc_b.loc[ci].astype(float).tolist(),
-                            ),
-                        }
-                    )
+            _pair("rl", b, c, rl, gi)
     out["paired"] = pairs
     return out
 
