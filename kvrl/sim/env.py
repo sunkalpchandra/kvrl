@@ -54,10 +54,14 @@ class CacheSimEnv:
         feature_cfg: FeatureConfig | None = None,
         min_budget_tokens: int = 128,
         use_layer_max_reward: bool = False,
+        lambda_crit: float = 0.0,
     ):
         self.gamma = gamma
         self.r_scale = r_scale
         self.lambda_task = lambda_task
+        # dense penalty for evicting task-critical tokens (labelled traces only): the
+        # attention-mass reward cannot value a needle nobody has attended to yet (E-007/E-008)
+        self.lambda_crit = lambda_crit
         self.n_sink = n_sink
         self.feature_cfg = feature_cfg or FeatureConfig()
         self.min_budget_tokens = min_budget_tokens
@@ -117,6 +121,7 @@ class CacheSimEnv:
         self._vnorm = trace.value_norm.astype(np.float32)
         self.crit_retained = []  # per decode step
         self.n_evictions = 0
+        self.crit_evicted_total = 0.0
         self._cum_mean = np.zeros(0, dtype=np.float32)
         self._cum_max = np.zeros(0, dtype=np.float32)
         self._pending_state: CacheState | None = None
@@ -225,6 +230,11 @@ class CacheSimEnv:
         ev_tokens = self.alive[ev.numpy()]
         fut = float(self.F[k, ev_tokens].sum())
         reward = -fut / self.r_scale
+        crit = self.trace.critical_mask if self.trace is not None else None
+        if self.lambda_crit > 0 and crit is not None and crit.any():
+            n_crit_evicted = float(crit[ev_tokens].sum())
+            self.crit_evicted_total += n_crit_evicted
+            reward -= self.lambda_crit * n_crit_evicted / float(crit.sum())
         self.evicted[ev_tokens] = True
         self.evict_step[ev_tokens] = k
         self.n_evictions += int(ev.numel())

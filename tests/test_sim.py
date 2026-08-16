@@ -121,3 +121,24 @@ def test_heuristics_run_in_sim_and_window_beats_random_on_recency_trace():
         out[name] = run_controller_episode(env, tr, make_controller(name), budget_frac=0.25)
         assert out[name]["n_evictions"] > 0
     assert set(out) == {"window", "random", "h2o", "snapkv"}
+
+
+def test_critical_eviction_penalty():
+    tr = synthetic_trace(seed=2)
+    crit_idx = set(np.nonzero(tr.critical_mask)[0].tolist())
+    for lam in (0.0, 5.0):
+        env = CacheSimEnv(lambda_crit=lam, lambda_task=0.0)
+        res = env.reset(tr, budget=96)
+        total = 0.0
+        while not res.done:
+            cand = torch.nonzero(res.cand_mask).flatten()
+            # deliberately evict critical tokens first when possible
+            crit_c = torch.tensor([c for c in cand.tolist() if int(env.alive[c]) in crit_idx], dtype=torch.long)
+            pick = torch.cat([crit_c, cand[~torch.isin(cand, crit_c)]])[: res.m]
+            res = env.step(pick)
+            total += res.reward
+        if lam == 0.0:
+            base = total
+        else:
+            assert total < base - 1.0  # penalised
+            assert env.crit_evicted_total > 0
