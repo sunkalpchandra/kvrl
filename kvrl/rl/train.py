@@ -141,6 +141,16 @@ def train(cfg: dict, run: Run, log=print) -> dict:
         raise RuntimeError(f"no traces in {cfg['data']['train_dir']} — run kvrl.collect first")
     log(f"[train] {len(train_traces)} train traces, {len(val_traces)} val traces")
     consts = feature_norm_constants(train_traces)
+    init_from = rl.get("init_from")
+    if init_from:
+        # warm start from a checkpoint (e.g. the supervised regressor): reuse ITS feature
+        # config so normalisation constants match the pretrained weights
+        from kvrl.controllers.learned import load_policy_checkpoint
+
+        _p, _f, _ck = load_policy_checkpoint(init_from)
+        consts = {"k_norm_mean": _f.k_norm_mean, "k_norm_std": _f.k_norm_std,
+                  "v_norm_mean": _f.v_norm_mean, "v_norm_std": _f.v_norm_std}
+        log(f"[train] warm start from {init_from} ({_ck.get('kind')})")
     fcfg = FeatureConfig(
         **consts,
         token_features=cfg.get("features", {}).get("token", list(TOKEN_FEATURES)),
@@ -185,6 +195,8 @@ def train(cfg: dict, run: Run, log=print) -> dict:
         target_kl=float(rl.get("target_kl", 0.02)),
         ratio_mode=rl.get("ratio_mode", "per_slot"),
     )
+    if init_from:
+        policy.load_state_dict(_p.state_dict())
     algo = PPO(policy, value, ppo_cfg, device=device)
     use_priv = bool(rl.get("privileged_critic", True))
     n_value_params = sum(p.numel() for p in value.parameters())

@@ -41,6 +41,7 @@ rl:
   target_kl: 0.02
   ratio_mode: per_slot         # per_slot | sequence
   privileged_critic: true
+  init_from: null              # e.g. checkpoints/regressor_v1.pt for a warm start
 
 training:
   steps_per_update: 1024       # decision-steps per PPO update
