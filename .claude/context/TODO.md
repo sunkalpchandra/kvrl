@@ -1,22 +1,19 @@
-# TODO (prioritised; keep short, move done items to STATUS/EXPERIMENTS)
+# TODO (prioritised)
 
-## Phase 0 — bootstrap
-- [x] inspect environment
-- [x] create .claude context system
-- [ ] agent role prompts
-- [ ] ML Architect + Inference Engineer independent designs → reconcile → ARCHITECTURE.md
-- [ ] pick model (candidate: Qwen/Qwen2.5-0.5B-Instruct — 32K ctx, GQA, ~1 GB bf16)
-- [ ] GitHub repo + first push
+## Now (Phase 4/5)
+- [ ] finish trace collection; re-run `kvrl.collect` to fill missing code traces (packing fix)
+- [ ] full PPO run (configs/train.yaml, 60K steps) → checkpoints/ppo_mlp_v1.pt; record in EXPERIMENTS.md
+- [ ] E-proxy: sim lost-mass vs real ΔNLL / accuracy correlation across (prompt, policy, budget)
+- [ ] real evaluation matrix (configs/evaluate.yaml) incl. RL; paired CIs vs h2o
+- [ ] benchmark run (configs/benchmark.yaml): latency/memory vs context, decode curve
+- [ ] regressor baseline training (scripts/train_regressor.py) — honest ML baseline
+- [ ] slow integration test on the real model (pytest -m slow)
 
-## Phase 1 — model + full-cache baseline + benchmark harness
-- [ ] model registry / HF wrapper with custom attention (stats capture, chunked prefill)
-- [ ] manual decode loop with explicit position handling
-- [ ] cache abstraction: inspect / compact (index_select) per layer
-- [ ] correctness test: budget=100% == HF greedy
-- [ ] benchmark harness (latency, memory; MPS + CUDA + CPU)
-
-## Phase 2 — traces + simulator
-## Phase 3 — heuristic baselines
-## Phase 4 — PPO
-## Phase 5 — real integration
-## Later — representation, hierarchy, hardware-aware, suite, dashboard, perf, docs
+## Next (Phases 6–12)
+- [ ] ablations script (features/history/arch/protection/global-vs-layer) with plots
+- [ ] generalisation: train 2K–4K → test 8K; unseen depths
+- [ ] failure analysis tools (critical-token evictions, evict-age histograms)
+- [ ] hardware-aware objective (v2: occupancy sub-action + latency term)
+- [ ] dashboard: FastAPI + React (overview, retention strip, decision trace, explorer, Pareto)
+- [ ] perf: profile controller/feature/compaction; batch policy decisions
+- [ ] README with real numbers + diagrams; setup.sh dry-run; Dockerfile
