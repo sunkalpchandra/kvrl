@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; }
+body { font-family: ui-sans-serif, system-ui, -apple-system, "Inter", sans-serif; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.card { @apply rounded-lg border border-zinc-800/80 bg-[#101318] p-4; }
+.label { @apply text-[11px] uppercase tracking-[0.14em] text-zinc-500; }
+.kpi { @apply text-2xl font-semibold tabular-nums text-zinc-100; }
+.btn { @apply rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-200 hover:border-zinc-500 disabled:opacity-40; }
+.input { @apply rounded-md border border-zinc-800 bg-[#0b0d10] px-2 py-1 text-sm text-zinc-200 focus:border-zinc-500 focus:outline-none; }
+.tag { @apply rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wider; }
+.tag-real { @apply bg-emerald-950 text-emerald-300 border border-emerald-900; }
+.tag-sim { @apply bg-amber-950 text-amber-300 border border-amber-900; }
