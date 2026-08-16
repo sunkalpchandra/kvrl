@@ -1,6 +1,6 @@
 # STATUS  (update after every significant piece of work)
 
-_Last updated: 2026-08-16 07:50 — v1 complete: all phases delivered; dashboard live at sunkalpchandra.github.io/kvrl (static snapshot); CI green_
+_Last updated: 2026-08-16 16:40 — v1 complete + issue-driven second pass (E-012…E-017); final policy = ppo_mlp_v1; dashboard live; CI green_
 
 ## Works right now (all verified by tests or real runs)
 - **Model stack**: `kvrl.models` — Qwen2.5-0.5B-Instruct on MPS fp16 (also CPU/CUDA), registered
@@ -41,9 +41,19 @@ _Last updated: 2026-08-16 07:50 — v1 complete: all phases delivered; dashboard
   58 ms/tok (was 1.7–1.8 s), prefill 14 s (was 58–65 s); curve 28→88 ms/tok 512→8K, 1.09 s/tok
   at 16K (machine cliff).
 
+## Second pass (addressing the caveats)
+- Eval v2 (E-017): 42 prompts / 924 runs, ceiling tasks redesigned (kv 16 records: full 0.75;
+  dependency copy-chain), regressor + two RL variants. RL v1 significantly beats h2o/snapkv/
+  regressor on accuracy+fidelity and window on fidelity; vs keynorm not significant.
+- NLL semantics fixed: only lm rows are quality NLL (graded rows' nll = answer confidence).
+- Credit assignment work: per-slot counterfactual advantage (v1.3) moved sim metrics a lot but
+  regressed real accuracy → documented sim-objective/task mismatch; v1 stays primary.
+- Harness bugs fixed: MPS allocator bloat (BUG-003), deepcopy in the decode curve (BUG-004).
+- Benchmark v4 (5 repeats, keynorm + rl) is the canonical latency table.
+
 ## In progress
-- Nothing running. Next steps in TODO.md (ablations with warm-start protocol, needle-aware
-  reward, E-proxy rows for rl, CUDA validation).
+- Ablations with the warm-start protocol (scripts/ablate.py, 20K steps) — resumed after the
+  benchmark; results land in docs/ablations.md when done.
 
 ## Measured facts to remember
 - MPS fp16 vs bf16: 2.6× faster (D-004). enable_gqa vs repeat_kv: 4–25× faster attention on MPS.
