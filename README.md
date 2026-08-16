@@ -325,8 +325,16 @@ Measured facts that shaped the implementation (Apple M2, 8 GB, torch 2.13, trans
 - The reward is a proxy (attention mass); its validity is measured (`scripts/eproxy.py`), not
   assumed, and it can hide a few retrieval heads (layer-max variant is an ablation).
 - Batch size 1; contexts up to 8K–16K are practical here (32K only via chunked prefill).
-- Latency numbers on this machine are noisy (memory pressure); the harness reports medians
-  and IQRs over repeats.
+- Latency numbers on this machine are noisy (memory pressure from other apps; swap in use);
+  the harness reports medians and IQRs over repeats, and the full-cache decode measurements at
+  8K–16K include a memory cliff (≈1.7 s/token at 16K) that is this laptop swapping, not the
+  model. Attention-statistics controllers (H2O, SnapKV, RL) pay for the statistics pass
+  (~1.5–2× prefill time vs the plain path here); key-norm and window do not.
+- The evaluation is small (26 prompts, 22 graded) because each real run costs seconds to
+  minutes on this machine; several tasks are at the 0.5B model's ceiling even with a full
+  cache (kv 0.25, dependency 0.0), so they do not discriminate controllers.
+- Sim ablations at 8K steps from scratch are below H2O and therefore uninformative;
+  ablations need the warm-start protocol or longer training (E-009).
 
 ## 9. Reproduce
 
