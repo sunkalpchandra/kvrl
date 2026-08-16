@@ -88,6 +88,15 @@ class InferenceEngine:
         synchronize(self.device)
         return time.perf_counter()
 
+    @staticmethod
+    def _pick_next(logits: torch.Tensor) -> tuple[torch.Tensor, int, float]:
+        """Greedy next token + its log-prob with a single device→host transfer."""
+        row = logits[0, -1].float()
+        nxt = row.argmax()
+        lp = row[nxt] - torch.logsumexp(row, dim=0)
+        tok_i, lp_f = torch.stack([nxt.float(), lp]).tolist()
+        return nxt.view(1), int(tok_i), float(lp_f)
+
     @torch.no_grad()
     def run(
         self,
@@ -236,8 +245,10 @@ class InferenceEngine:
                     t_start = self._sync_time()
                     peak_mem.sample()
             else:
-                next_tok = int(logits[0, -1].argmax().item())
-                lp = torch.log_softmax(logits[0, -1].float(), dim=-1)[next_tok].item()
+                # one device→host sync per token: argmax + log-prob computed on device, then
+                # a single .tolist(); the next token id stays on device for the next forward
+                nxt_dev, next_tok, lp = self._pick_next(logits)
+                pos_dev = torch.tensor([pos], device=self.device)
                 since_decision = 0
                 for t in range(max_new_tokens):
                     generated.append(next_tok)
@@ -248,12 +259,11 @@ class InferenceEngine:
                         break
                     if t == max_new_tokens - 1:
                         break  # last token produced; no need to feed it back
-                    positions = torch.tensor([pos], device=self.device)
-                    tok = torch.tensor([next_tok], device=self.device)
-                    logits = model.forward_chunk(tok, positions, view.cache, logits_to_keep=1)
-                    view.append(positions, is_generated=True, step=step)
+                    logits = model.forward_chunk(nxt_dev, pos_dev, view.cache, logits_to_keep=1)
+                    view.append(pos_dev, is_generated=True, step=step)
                     alive.append(True)
                     pos += 1
+                    pos_dev = pos_dev + 1
                     since_decision += 1
                     if since_decision == self.decide_every:
                         timings["decode_s"] += self._sync_time() - t_start
@@ -261,8 +271,7 @@ class InferenceEngine:
                         since_decision = 0
                         t_start = self._sync_time()
                         peak_mem.sample()
-                    next_tok = int(logits[0, -1].argmax().item())
-                    lp = torch.log_softmax(logits[0, -1].float(), dim=-1)[next_tok].item()
+                    nxt_dev, next_tok, lp = self._pick_next(logits)
                 if since_decision > 0:
                     # final flush: lets tracing/analysis see the last decode tokens' attention
                     timings["decode_s"] += self._sync_time() - t_start
