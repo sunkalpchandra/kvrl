@@ -75,8 +75,8 @@ phase, occupancy). Protected: S=4 sink slots + the current chunk (W=64), always 
 - Decision every C=64 tokens; must evict m = n − B (hard budget); action = ordered evict
   set sampled by Plackett–Luce (Gumbel-top-k) over per-token scores; exact per-slot logp.
 - Obs: 18 per-token + 8 global features from `FeatureState` (one code path for both envs).
-- Reward (sim): r_k = −Σ_{j∈E_k} F^γ_k(j)/r_scale (future attention mass charged at eviction)
-  + terminal task term (gold-span retained) on labelled episodes. Quality-only in v1.
+- Reward (sim): r_k = −Σ_{j∈E_k} F^γ_k(j)/r_scale (future LAYER-MAX attention mass charged at
+  eviction, D-009) + terminal task term (gold-span retained) on labelled episodes. Quality-only in v1.
 - Policy v1: MLP 26→128→128→1 (20K params); value net pooled; PPO with per-slot ratios,
   RB entropy; PPO hparams in ML_SPEC §9.
 - Env A `CacheSimEnv`: batched trace replay (numpy/torch), millions of transitions/hour.

@@ -24,7 +24,9 @@ chunk_entropy. Critic-only privileged (sim): committed future loss, retained fut
 gold-retained fraction.
 
 ## Reward (sim, v1 quality-only; budget hard ⇒ memory fixed)
-- r_k = −(1/r_scale) Σ_{j∈E_k} F^γ_k(j), F^γ_k(j) = Σ_{k'>k} γ^{k'−k} A_{k'}(j)  (R1)
+- r_k = −(1/r_scale) Σ_{j∈E_k} F^γ_k(j), F^γ_k(j) = Σ_{k'>k} γ^{k'−k} A^{max}_{k'}(j)  (R1)
+  where A^max is the LAYER-MAX head-mean attention mass (D-009: E-proxy ρ=0.62 vs 0.44 for
+  the layer-mean variant). The layer-mean lost mass is still logged for comparison.
 - Telescoping identity with delayed lost-mass reward R2 (r_k = −ℓ_{k+1}/r_scale) — unit test.
 - Terminal: + λ_task · (fraction of gold-span tokens retained through the answer), λ_task=1,
   labelled episodes ≤ 30% of batch. r_scale = mean|r_k| under random policy at B=25%.
@@ -32,7 +34,8 @@ gold-retained fraction.
   accuracy across (prompt, policy, budget); gate ρ ≥ 0.7 before scaling RL.
 
 ## Networks
-- Policy v1: MLP [tok18 ⊕ glob8]=26 → 128 → 128 → 1 (SiLU), 20,097 params.
+- Policy v1: MLP [tok18 ⊕ glob8]=26 → 128 → 128 → 1 (SiLU), 20,097 params; warm-started from
+  the supervised future-mass regressor (D-009; from-scratch run E-003 stayed near-uniform).
 - Value v1: token 26→128 SiLU, mean⊕max pool ⊕ glob ⊕ priv → 128 → 1 (~38K params).
 - v1.5 DeepSets; v2 ISAB set-transformer (2 blocks, 32 inducing pts, d=64, ~75K params).
 
