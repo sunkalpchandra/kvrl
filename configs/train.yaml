@@ -2,7 +2,7 @@
 seed: 0
 device: cpu                    # tiny nets: CPU beats MPS launch overhead
 checkpoint_dir: checkpoints
-checkpoint_name: ppo_mlp_v1
+checkpoint_name: ppo_mlp_v1_2
 
 data:
   train_dir: data/raw/train
@@ -20,6 +20,7 @@ features:
 sim:
   budget_fracs: [0.25, 0.125, 0.5]
   lambda_task: 1.0
+  lambda_crit: 10.0            # v1.2: dense penalty for evicting task-critical tokens (labelled traces)
   n_sink: 4
   r_scale: null                # null = calibrate from a random policy at budget_fracs[0]
   calib_episodes: 6

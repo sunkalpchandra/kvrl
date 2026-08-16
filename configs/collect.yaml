@@ -15,16 +15,16 @@ collect:
       # (task, context tokens, count) — mixed lengths and task families
       jobs:
         - {task: lm,         tokens: 2048, n: 16}
-        - {task: needle,     tokens: 2048, n: 6}
-        - {task: kv,         tokens: 2048, n: 6}
-        - {task: multihop,   tokens: 2048, n: 4}
-        - {task: dependency, tokens: 2048, n: 4}
+        - {task: needle,     tokens: 2048, n: 12}
+        - {task: kv,         tokens: 2048, n: 12}
+        - {task: multihop,   tokens: 2048, n: 8}
+        - {task: dependency, tokens: 2048, n: 8}
         - {task: code,       tokens: 2048, n: 4}
         - {task: lm,         tokens: 4096, n: 16}
-        - {task: needle,     tokens: 4096, n: 6}
-        - {task: kv,         tokens: 4096, n: 6}
-        - {task: multihop,   tokens: 4096, n: 4}
-        - {task: dependency, tokens: 4096, n: 4}
+        - {task: needle,     tokens: 4096, n: 12}
+        - {task: kv,         tokens: 4096, n: 12}
+        - {task: multihop,   tokens: 4096, n: 8}
+        - {task: dependency, tokens: 4096, n: 8}
         - {task: code,       tokens: 4096, n: 4}
         - {task: lm,         tokens: 8192, n: 8}
         - {task: needle,     tokens: 8192, n: 4}

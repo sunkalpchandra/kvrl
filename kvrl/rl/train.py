@@ -166,6 +166,7 @@ def train(cfg: dict, run: Run, log=print) -> dict:
     env_kwargs = dict(
         gamma=float(rl["gamma"]),
         lambda_task=float(sim.get("lambda_task", 1.0)),
+        lambda_crit=float(sim.get("lambda_crit", 0.0)),
         n_sink=int(sim.get("n_sink", 4)),
         feature_cfg=fcfg,
         use_layer_max_reward=bool(sim.get("layer_max_reward", False)),
