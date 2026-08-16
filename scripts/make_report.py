@@ -149,7 +149,7 @@ def pareto_figures(run) -> list[str]:
     if paired:
         lines.append("\n#### Paired comparisons (per prompt, bootstrap 95% CI)\n")
         lines.append(
-            "| controller | budget | vs | metric | mean diff | CI | win rate | n | significant |"
+            "| controller | budget | vs | metric | mean diff (ctrl − vs) | 95% CI | ctrl better on | n | significant |"
         )
         lines.append("|---|---|---|---|---|---|---|---|---|")
         for p in paired:

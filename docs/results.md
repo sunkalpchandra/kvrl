@@ -36,7 +36,7 @@
 
 #### Paired comparisons (per prompt, bootstrap 95% CI)
 
-| controller | budget | vs | metric | mean diff | CI | win rate | n | significant |
+| controller | budget | vs | metric | mean diff (ctrl − vs) | 95% CI | ctrl better on | n | significant |
 |---|---|---|---|---|---|---|---|---|
 | h2o | 12% | full | nll | +0.3525 | [+0.2000, +0.5368] | 88% | 26 | yes |
 | rl | 12% | h2o | nll | -0.0847 | [-0.2478, +0.0337] | 54% | 26 | no |
