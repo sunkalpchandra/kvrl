@@ -10,7 +10,7 @@ data:
   limit: null                  # max traces (null = all)
   val_limit: 12
   tasks: null                  # e.g. [lm, needle]
-  max_prompt: null
+  max_prompt: 4200            # train on 2K-4K prompts; 8K traces are the generalisation test
 
 features:
   ema_fast: 0.5
@@ -36,8 +36,8 @@ rl:
   clip: 0.2
   entropy_coef: 0.001          # 0.01 fights learning: bonus ~ policy loss magnitude
   value_coef: 0.5
-  epochs: 6
-  minibatch: 128
+  epochs: 4
+  minibatch: 256
   target_kl: 0.02
   ratio_mode: per_slot         # per_slot | sequence
   privileged_critic: true
@@ -45,5 +45,5 @@ rl:
 training:
   steps_per_update: 1024       # decision-steps per PPO update
   total_steps: 60000
-  eval_every_updates: 5
-  eval_traces: 8
+  eval_every_updates: 8
+  eval_traces: 6

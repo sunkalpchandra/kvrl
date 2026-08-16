@@ -128,7 +128,6 @@ class PPO:
         if cfg.normalize_adv and adv_all.numel() > 1:
             adv_all = (adv_all - adv_all.mean()) / (adv_all.std() + 1e-8)
         n = len(buf)
-        idx_all = np.arange(n)
         # pad the whole buffer once (fp32) and slice minibatches by index
         tok_all, glob_all, valid_all, cand_all, ev_all = pad_batch(
             [t.tok for t in buf.items],
@@ -154,11 +153,15 @@ class PPO:
         }
         stop = False
         epochs_done = 0
+        # bucket decisions by cache size so a minibatch pads to a similar n (2-3x less compute
+        # than random minibatches when episodes range from 2K to 8K prompts)
+        sizes = valid_all.sum(dim=1).cpu().numpy()
         for _epoch in range(cfg.epochs):
             epochs_done += 1
-            np.random.shuffle(idx_all)
-            for s in range(0, n, cfg.minibatch):
-                mb = idx_all[s : s + cfg.minibatch]
+            order = np.argsort(sizes + np.random.rand(n))  # random tie-break within equal sizes
+            batches = [order[s : s + cfg.minibatch] for s in range(0, n, cfg.minibatch)]
+            np.random.shuffle(batches)
+            for mb in batches:
                 mbt = torch.as_tensor(mb, device=self.device)
                 n_max = int(valid_all[mbt].sum(dim=1).max())
                 m_max = int((ev_all[mbt] >= 0).sum(dim=1).max().clamp_min(1))
