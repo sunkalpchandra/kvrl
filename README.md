@@ -128,6 +128,12 @@ of model time). In the simulator it is the best non-oracle controller on lost at
 (0.109 vs SnapKV 0.119, H2O 0.122, oracle 0.082 at 25 %), *including 8K-token traces it never
 trained on* (trained on ≤4K).
 
+**Long contexts, beyond the training length.** The policy was trained on prompts ≤ 4K
+tokens. On 8K and 16K needle prompts (E-010, 4 prompts) it answers correctly at 50 % budget on
+every prompt and at 25 % on two of three, with NLL within 0.02–0.12 of the full cache, while
+H2O, SnapKV and the sliding window answer none at any budget; its decision cost is 0.3–0.5 s
+per 8K–16K prompt (≈1–2 % of model time). Small n, but the direction is unambiguous.
+
 **What beats it, and why.** A one-line heuristic — evict the tokens with the largest key
 norm — is better than the RL policy on this suite (accuracy 0.273 vs 0.136 at 25 %, NLL 0.763
 vs 0.783; the accuracy gap is not significant at n = 22 graded prompts). The reason is visible
