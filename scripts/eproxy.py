@@ -85,8 +85,11 @@ def main() -> int:
             if tr.trace_id not in full_nll:
                 res = engine.run(ids, make_controller("full"), budget=1 << 30, forced_ids=forced)
                 full_nll[tr.trace_id] = res.nll
+            done = {(r["trace_id"], r["controller"], r["budget_frac"]) for r in rows}
             for name in ctrl_names:
                 for bf in budgets:
+                    if (tr.trace_id, name, bf) in done:
+                        continue
                     t0 = time.time()
                     ctrl = (
                         make_controller(name, checkpoint=args.checkpoint)
