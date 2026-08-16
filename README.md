@@ -123,32 +123,41 @@ prefix agreement), KV bytes (peak/final), latency breakdown, paired bootstrap CI
 
 ## 6. Findings (real model, Apple M2, fp16 — every number from a tracked run)
 
-**What the learned controller does well.** On the real model, the PPO policy beats every
-attention-based heuristic (H2O, SnapKV, sliding window) and random eviction at all three
-budgets on both task accuracy and NLL, with paired per-prompt NLL differences vs H2O
-significant at 25 % and 50 % budget (E-007). Its decision cost is ~0.07 s per prompt (≈1.5 %
-of model time). In the simulator it is the best non-oracle controller on lost attention mass
-(0.109 vs SnapKV 0.119, H2O 0.122, oracle 0.082 at 25 %), *including 8K-token traces it never
-trained on* (trained on ≤4K).
+The evaluation is 42 prompts (38 graded) across needle / kv / multihop / dependency / code / lm at
+2K–4K tokens, three budgets, 924 real runs (E-017); the full-cache model scores 0.763.
 
-**Long contexts, beyond the training length.** The policy was trained on prompts ≤ 4K
-tokens. On 8K and 16K needle prompts (E-010, 4 prompts) it answers correctly at 50 % budget on
-every prompt and at 25 % on two of three, with NLL within 0.02–0.12 of the full cache, while
-H2O, SnapKV and the sliding window answer none at any budget; its decision cost is 0.3–0.5 s
-per 8K–16K prompt (≈1–2 % of model time). Small n, but the direction is unambiguous.
+**What the learned controller does well.** RL (v1) beats every attention-based heuristic
+and the supervised regressor on the real model. Paired per-prompt comparisons at 25 % and 50 %
+budget: RL vs H2O +0.16 / +0.26 accuracy and +0.16 / +0.22 fidelity (all significant), RL vs
+SnapKV +0.13 / +0.24 accuracy and +0.11 / +0.26 fidelity (significant), RL vs the supervised
+regressor +0.18 / +0.21 accuracy (significant), RL vs sliding window +0.16 / +0.23 fidelity
+(significant). On natural-text continuation (lm task) RL matches the full cache (NLL 3.225 vs
+3.225 at 25 %). Controller overhead is 0.2 s per prompt (≈4 % of model time at 2K, dominated
+by feature computation; the decision itself is ~1 ms). It generalises beyond its training
+length: trained on ≤ 4K, it keeps 8K–16K needles at 50 % budget where H2O/SnapKV/window score 0
+(E-010).
 
-**What beats it, and why.** A one-line heuristic — evict the tokens with the largest key
-norm — is better than the RL policy on this suite (accuracy 0.273 vs 0.136 at 25 %, NLL 0.763
-vs 0.783; the accuracy gap is not significant at n = 22 graded prompts). The reason is visible
-in the failure analysis: in a *streaming* setting the needle is evicted during prefill,
-before the question arrives, by anything that ranks on attention received so far (H2O,
-SnapKV, window all score 0 on needle at 25 %), whereas needle tokens have small key norms and
-survive key-norm eviction almost perfectly. The RL policy discovered the same signal — key
-norm is by far its most important feature by permutation importance — and retains critical
-tokens far better than the attention heuristics (0.49 vs H2O 0.34, SnapKV 0.08 in sim) but not
-as well as pure key-norm (0.73). Its reward is attention mass, which does not fully reward
-keeping a needle nobody has attended to yet; a larger terminal task term did not fix that
-(E-008).
+**What it does not beat.** A one-line heuristic — evict the tokens with the largest key norm —
+has higher accuracy (0.316 vs 0.184 at 25 %) and fidelity (0.649 vs 0.552). The difference is
+*not* statistically significant at n = 38 (accuracy −0.13 [−0.29, +0.05]), and keynorm is the
+worst controller on natural-text NLL (3.263), but the point estimates are consistent across
+budgets and we report them as they are. Mechanism (failure analysis + a token-level probe):
+in streaming eviction anything that ranks by attention received so far drops a needle before
+the question arrives; needle tokens sit at the 1st–10th percentile of key norm, so keynorm keeps
+them trivially. RL discovered the same signal — key norm is its most important feature by
+permutation importance — but it trades some needles for hot tokens because its reward is
+attention mass.
+
+**What we tried, honestly.** (i) A dense penalty for evicting task-critical tokens (E-012): no
+change — with one shared advantage per 64-token decision the credit for a single eviction is
+diluted. (ii) Per-slot counterfactual credit assignment (E-014): the simulator metrics moved
+substantially (critical retention 0.26 → 0.39, answer-token retention 0.50 → 0.63, best lost
+mass of any controller, policy entropy 6.2 → 4.4 nats) — but real accuracy *fell* (0.184 →
+0.079 at 25 %); a sim→real probe shows the simulator is faithful (retained-set Jaccard 0.8–0.85
+on identical prompts), so this is the objective, not the simulator: attention-mass reward
+plus a token-fraction penalty is not task accuracy. (iii) A stronger penalty and answer-token
+weighting (E-015, E-016) did not help. v1 remains the shipped policy; the others are in
+`checkpoints/` and the tables.
 
 **Proxy validation.** The simulator's layer-mean lost attention mass correlates only weakly
 with real ΔNLL (Spearman 0.36); the layer-max variant correlates much better (0.59; 0.65–0.71
@@ -156,14 +165,13 @@ within each budget), which is why the reward uses layer-max attention (D-009). A
 layers hides the few heads that do retrieval.
 
 **Hardware.** KV memory is bounded exactly by the budget (peak = budget + one chunk). On this
-0.5B model decode is dominated by weight reads, so latency gains from a smaller cache are small
-at ≤4K context (see the measured decode-vs-cache-length curve) — the mechanism, not the
-absolute number, is what transfers. The most important hardware effect we hit was not the
-model at all: on MPS the caching allocator kept every freed attention buffer of the chunked
-prefill (7.7 GB reserved vs 0.9 GB allocated after 8K tokens on an 8 GB machine), the OS
-swapped, and full-cache decode at 8K crawled to ~1.2 s/token; releasing the pool every 8
-chunks fixed it (57 ms/token) with no prefill cost (BUG-003, D-010). A 25 % cache never came
-near that cliff (1.1 GB reserved).
+0.5B model decode is dominated by weight reads, so latency gains from a smaller cache are
+modest at ≤ 8K (see the measured decode-vs-cache-length curve). Two things we hit were not the
+model: on MPS the caching allocator kept every freed attention buffer of the chunked prefill
+(7.7 GB reserved vs 0.9 GB allocated after 8K tokens on an 8 GB machine), the OS swapped, and
+full-cache decode at 8K crawled to ~1.2 s/token — releasing the pool every 8 chunks fixed it
+(57 ms/token) with no prefill cost (BUG-003, D-010); and an earlier "16K cliff" turned out to be
+a `deepcopy` of the whole cache in our own measurement harness (BUG-004).
 
 ## 7. Results tables and figures
 
