@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.log
+
+# Data / artifacts (never commit weights, traces, large datasets)
+data/raw/
+data/processed/
+data/features/
+data/eval/
+data/*.parquet
+data/*.h5
+data/*.npz
+data/*.npy
+data/*.sqlite
+runs/
+checkpoints/*.pt
+checkpoints/*.bin
+!checkpoints/README.md
+!checkpoints/*.json
+mlruns/
+wandb/
+*.safetensors
+*.gguf
+*.ckpt
+hf_cache/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+.npm/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
