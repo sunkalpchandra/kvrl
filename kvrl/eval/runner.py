@@ -227,14 +227,16 @@ def summarize_results(df: pd.DataFrame) -> dict:
                     }
                 )
 
+    learned = [c for c in df.controller.unique() if str(c).startswith("rl")]
     for (c, b), g in grp:
         if c == "full":
             continue
         gi = g.set_index(key)
         _pair(c, b, "full", gi, full)
-        if "rl" in df.controller.values and c != "rl":
-            rl = df[(df.controller == "rl") & (df.budget_frac == b)].set_index(key)
-            _pair("rl", b, c, rl, gi)
+        for lc in learned:
+            if c != lc:
+                rl = df[(df.controller == lc) & (df.budget_frac == b)].set_index(key)
+                _pair(lc, b, c, rl, gi)
     out["paired"] = pairs
     return out
 

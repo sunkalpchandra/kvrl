@@ -11,7 +11,7 @@ Rows are appended to runs/<id>/eproxy.jsonl; existing rows for a controller can 
 (--reuse RUN_ID) so the RL policy can be added later on the same prompts.
 
     python scripts/eproxy.py --controllers window,random,h2o,snapkv,keynorm
-    python scripts/eproxy.py --controllers rl --checkpoint checkpoints/ppo_mlp_v1_3.pt --reuse <run_id>
+    python scripts/eproxy.py --controllers rl --checkpoint checkpoints/ppo_mlp_v1.pt --reuse <run_id>
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def main() -> int:
     ap.add_argument("--traces", default="data/raw/val")
     ap.add_argument("--limit", type=int, default=20)
     ap.add_argument("--controllers", default="window,random,h2o,snapkv,keynorm")
-    ap.add_argument("--checkpoint", default="checkpoints/ppo_mlp_v1_3.pt")
+    ap.add_argument("--checkpoint", default="checkpoints/ppo_mlp_v1.pt")
     ap.add_argument("--budgets", default="0.125,0.25,0.5")
     ap.add_argument("--reuse", default=None, help="run id whose eproxy.jsonl rows to include")
     ap.add_argument("--max-forced", type=int, default=64)

@@ -3,7 +3,7 @@
 retention profiles, and RL feature permutation importance. Writes docs/figures/failure_*.png
 and docs/failure_analysis.md.
 
-    python scripts/failure_analysis.py --checkpoint checkpoints/ppo_mlp_v1_3.pt --budget 0.25
+    python scripts/failure_analysis.py --checkpoint checkpoints/ppo_mlp_v1.pt --budget 0.25
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ COLORS = {
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--traces", default="data/raw/val")
-    ap.add_argument("--checkpoint", default="checkpoints/ppo_mlp_v1_3.pt")
+    ap.add_argument("--checkpoint", default="checkpoints/ppo_mlp_v1.pt")
     ap.add_argument("--regressor", default="checkpoints/regressor_v1.pt")
     ap.add_argument("--budget", type=float, default=0.25)
     ap.add_argument("--limit", type=int, default=20)

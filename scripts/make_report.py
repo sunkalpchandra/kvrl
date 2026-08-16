@@ -33,6 +33,8 @@ COLORS = {
     "random": "#bcbd22",
     "keynorm": "#9467bd",
     "regressor": "#17becf",
+    "rl_v1": "#98df8a",
+    "rl_v1_3": "#2ca02c",
     "tova": "#8c564b",
     "hybrid": "#7fbf7f",
 }
@@ -58,8 +60,14 @@ def latest(kind: str, run_id: str | None):
         runs = [r for r in runs if r["meta"]["run_id"] == run_id]
     if kind == "eval" and not run_id and runs:
         # primary = the largest evaluation (most rows); others are reported compactly
-        runs = sorted(runs, key=lambda r: (Path(r["dir"]) / "results.parquet").stat().st_size
-                      if (Path(r["dir"]) / "results.parquet").exists() else 0)
+        runs = sorted(
+            runs,
+            key=lambda r: (
+                (Path(r["dir"]) / "results.parquet").stat().st_size
+                if (Path(r["dir"]) / "results.parquet").exists()
+                else 0
+            ),
+        )
     return runs[-1] if runs else None
 
 
@@ -71,16 +79,29 @@ def compact_eval_section(run) -> list[str]:
     cfg = run.get("config", {})
     jobs = cfg.get("eval", {}).get("jobs", [])
     desc = ", ".join(f"{j['task']}@{j['tokens']}×{j['n']}" for j in jobs)
-    lines = [f"\n### Additional evaluation — run `{run['meta']['run_id']}` ({desc}; {len(df)} rows)\n",
-             "| controller | budget | n | accuracy | NLL | fidelity | KV peak | model s |", "|---|---|---|---|---|---|---|---|"]
+    lines = [
+        f"\n### Additional evaluation — run `{run['meta']['run_id']}` ({desc}; {len(df)} rows)\n",
+        "| controller | budget | n | accuracy (graded) | NLL (lm) | fidelity (graded) | KV peak | model s |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
     for (c, b), g in df.groupby(["controller", "budget_frac"]):
         acc = g["correct"].dropna().astype(float)
-        lines.append(f"| {c} | {'100%' if c == 'full' else f'{b:.0%}'} | {len(g)} | {acc.mean() if len(acc) else float('nan'):.3f} | "
-                     f"{g['nll'].mean():.3f} | {g['fidelity'].mean():.3f} | {g['kv_peak_frac'].mean():.0%} | {g['model_s'].median():.1f} |")
-    bt = df[df.correct.notna()].groupby(["task", "n_prompt", "controller", "budget_frac"])["correct"].mean().reset_index()
+        lm = g[g.task == "lm"]["nll"]
+        lines.append(
+            f"| {c} | {'100%' if c == 'full' else f'{b:.0%}'} | {len(g)} | {acc.mean() if len(acc) else float('nan'):.3f} | "
+            f"{lm.mean() if len(lm) else float('nan'):.3f} | {g['fidelity'].mean():.3f} | {g['kv_peak_frac'].mean():.0%} | {g['model_s'].median():.1f} |"
+        )
+    bt = (
+        df[df.correct.notna()]
+        .groupby(["task", "n_prompt", "controller", "budget_frac"])["correct"]
+        .mean()
+        .reset_index()
+    )
     if len(bt):
         lines.append("\nPer prompt length (accuracy):\n")
-        piv = bt.pivot_table(index=["task", "n_prompt"], columns=["controller", "budget_frac"], values="correct")
+        piv = bt.pivot_table(
+            index=["task", "n_prompt"], columns=["controller", "budget_frac"], values="correct"
+        )
         lines.append(piv.round(2).to_markdown())
     return lines
 
@@ -101,7 +122,7 @@ def pareto_figures(run) -> list[str]:
                 "budget": "100%" if c == "full" else f"{b:.0%}",
                 "n": len(gg),
                 "accuracy": acc.mean() if len(acc) else float("nan"),
-                "nll": gg["nll"].mean(),
+                "nll": gg[gg.task == "lm"]["nll"].mean(),  # lm only (forced continuation)
                 "fidelity": gg["fidelity"].mean(),
                 "kv_peak": gg["kv_peak_frac"].mean(),
                 "model_s": gg["model_s"].median(),
@@ -111,7 +132,7 @@ def pareto_figures(run) -> list[str]:
         )
     t = pd.DataFrame(tab).sort_values(["budget", "controller"], ascending=[False, True])
     lines.append(
-        "| controller | budget | n | accuracy | NLL | fidelity | KV peak | model s | ctrl s | compact s |"
+        "| controller | budget | n | accuracy (graded) | NLL (lm) | fidelity vs full (graded) | KV peak | model s | ctrl s | compact s |"
     )
     lines.append("|---|---|---|---|---|---|---|---|---|---|")
     for _, r in t.iterrows():
@@ -131,13 +152,18 @@ def pareto_figures(run) -> list[str]:
     fig, axes = plt.subplots(1, 4, figsize=(15, 3.4))
     for c, gg in t.groupby("controller"):
         gg = gg.sort_values("kv_peak")
-        kw = dict(color=COLORS.get(c, None), marker="o", label=c, ms=4)
+        kw = dict(color=COLORS.get(c, "#e377c2"), marker="o", label=c, ms=4)
         axes[0].plot(gg.kv_peak, gg.accuracy, **kw)
         axes[1].plot(gg.kv_peak, gg.nll, **kw)
         axes[2].plot(gg.kv_peak, gg.fidelity, **kw)
         axes[3].plot(gg.total_s, gg.accuracy, **kw)
     for ax, yl in zip(
-        axes[:3], ["task accuracy", "NLL (natural continuation)", "fidelity vs full (ROUGE-L)"]
+        axes[:3],
+        [
+            "task accuracy (graded tasks)",
+            "NLL of natural continuation (lm task)",
+            "fidelity vs full (ROUGE-L, graded)",
+        ],
     ):
         ax.set_xlabel("peak KV memory (fraction of full)")
         ax.set_ylabel(yl)
@@ -167,7 +193,7 @@ def pareto_figures(run) -> list[str]:
         piv = sub.pivot_table(index="task", columns="controller", values="correct")
         lines.append(piv.to_markdown(floatfmt=".2f"))
         fig, ax = plt.subplots(figsize=(7, 3))
-        piv.plot.bar(ax=ax, color=[COLORS.get(c) for c in piv.columns], width=0.8)
+        piv.plot.bar(ax=ax, color=[COLORS.get(c, "#e377c2") for c in piv.columns], width=0.8)
         ax.set_ylabel("accuracy @ 25% budget")
         ax.set_ylim(0, 1.05)
         ax.legend(fontsize=7, ncol=4, frameon=False)
@@ -209,7 +235,7 @@ def bench_figures(run) -> list[str]:
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.4))
     for c, gg in df.groupby("controller"):
         gg = gg.sort_values("context")
-        kw = dict(color=COLORS.get(c), marker="o", label=c, ms=4)
+        kw = dict(color=COLORS.get(c, "#e377c2"), marker="o", label=c, ms=4)
         axes[0].plot(gg.context, gg.prefill_s_median, **kw)
         axes[1].plot(gg.context, gg.decode_ms_per_tok_median, **kw)
         axes[2].plot(gg.context, gg.kv_bytes_peak / 2**20, **kw)
@@ -314,7 +340,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--eval", default=None)
     ap.add_argument("--bench", default=None)
-    ap.add_argument("--train", default=None, help="default: the run recorded in checkpoints/ppo_mlp_v1.json")
+    ap.add_argument(
+        "--train", default=None, help="default: the run recorded in checkpoints/ppo_mlp_v1.json"
+    )
     args = ap.parse_args()
     if args.train is None:
         meta_p = Path("checkpoints/ppo_mlp_v1.json")

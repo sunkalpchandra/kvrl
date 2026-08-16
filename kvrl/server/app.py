@@ -124,7 +124,7 @@ def pareto(run_id: str | None = None):
                 "budget_frac": float(b),
                 "n": len(g),
                 "accuracy": float(acc.astype(float).mean()) if len(acc) else None,
-                "nll": float(g["nll"].mean()),
+                "nll": float(g[g.task == "lm"]["nll"].mean()) if (g.task == "lm").any() else None,
                 "fidelity": float(g["fidelity"].dropna().mean())
                 if g["fidelity"].notna().any()
                 else None,
@@ -145,7 +145,7 @@ def pareto(run_id: str | None = None):
                 "budget_frac": float(b),
                 "n": len(g),
                 "accuracy": float(acc.astype(float).mean()) if len(acc) else None,
-                "nll": float(g["nll"].mean()),
+                "nll": float(g[g.task == "lm"]["nll"].mean()) if (g.task == "lm").any() else None,
                 "kv_peak_frac": float(g["kv_peak_frac"].mean()),
             }
         )
@@ -217,7 +217,7 @@ class DemoRequest(BaseModel):
     tokens: int = 2048
     budget_frac: float = 0.25
     controller: str = "rl"
-    checkpoint: str = "checkpoints/ppo_mlp_v1_3.pt"
+    checkpoint: str = "checkpoints/ppo_mlp_v1.pt"
     max_new_tokens: int = 16
     seed: int = 7
     model: str = "qwen2.5-0.5b-instruct"
@@ -381,7 +381,7 @@ async def demo_stream(
     tokens: int = 2048,
     budget_frac: float = 0.25,
     controller: str = "rl",
-    checkpoint: str = "checkpoints/ppo_mlp_v1_3.pt",
+    checkpoint: str = "checkpoints/ppo_mlp_v1.pt",
     max_new_tokens: int = 16,
     seed: int = 7,
     model: str = Query("qwen2.5-0.5b-instruct"),
