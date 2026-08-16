@@ -1,5 +1,8 @@
 # kvrl — an RL controller for the Transformer KV cache
 
+[![CI](https://github.com/sunkalpchandra/kvrl/actions/workflows/ci.yml/badge.svg)](https://github.com/sunkalpchandra/kvrl/actions/workflows/ci.yml)
+[![Dashboard](https://img.shields.io/badge/dashboard-live%20snapshot-10b981)](https://sunkalpchandra.github.io/kvrl/)
+
 **Can a reinforcement-learning controller learn which information a Transformer should
 retain or evict from its KV cache during long-context inference — reducing memory and
 inference cost while preserving downstream quality?**
@@ -388,6 +391,9 @@ python scripts/make_report.py                             # figures + tables fro
 python demo.py                                            # terminal demo
 uvicorn kvrl.server.app:app --port 8000 & (cd frontend && npm install && npm run dev)   # dashboard
 ```
+
+The dashboard is also published as a static snapshot (no backend; every JSON under
+`frontend/public/demo/` is a verbatim API export): https://sunkalpchandra.github.io/kvrl/
 
 CPU-only development works end to end with the `tiny-random` model (all fast tests) and with
 the real model on CPU (slow). CUDA works through the same device abstraction (untested here).
