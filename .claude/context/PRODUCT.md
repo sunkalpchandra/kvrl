@@ -15,3 +15,12 @@ Screens (planned):
 
 Backend: FastAPI serving `runs/` + live inference endpoint. Frontend: React+Vite+TS,
 hash routing, static demo mode for GitHub Pages (JSON snapshots).
+
+
+## Status (2026-08-16)
+Implemented: FastAPI backend (`kvrl/server/app.py`: runs, pareto, bench, checkpoints, demo POST +
+SSE stream, static mount) and React/Vite/TS/Tailwind frontend (`frontend/`): Live demo (controls,
+side-by-side cards, token retention strip with click-for-detail, decision trace, run facts),
+Pareto frontier (accuracy/fidelity/NLL vs KV%, series toggles, table), Latency & memory (bench
+curves + hardware curve), Experiments (run list with provenance, filterable rows). Static
+snapshot mode via `scripts/export_demo_snapshot.py` → `frontend/public/demo/*.json`.

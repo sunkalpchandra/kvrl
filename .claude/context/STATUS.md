@@ -1,6 +1,6 @@
 # STATUS  (update after every significant piece of work)
 
-_Last updated: 2026-08-16 05:05 (Phases 1–10 done; benchmark + long-context eval running; docs finishing)_
+_Last updated: 2026-08-16 06:20 (all phases have a working v1; final re-benchmark running; docs complete)_
 
 ## Works right now (all verified by tests or real runs)
 - **Model stack**: `kvrl.models` — Qwen2.5-0.5B-Instruct on MPS fp16 (also CPU/CUDA), registered
@@ -31,9 +31,15 @@ _Last updated: 2026-08-16 05:05 (Phases 1–10 done; benchmark + long-context ev
   better than attention heuristics but less than keynorm.
 - v1.1 (λ_task=3) negative (E-008).
 
+- Long-context eval (E-010): at 8K/16K RL answers needles at 50% (3/3) and 25% (2/3) budget
+  while h2o/snapkv/window score 0; NLL within 0.02–0.12 of full cache. Policy trained ≤4K.
+- Benchmark (bench run 20260816-045836): KV peak = budget + chunk exactly; decode 28–57 ms/tok
+  up to 8K full cache, memory cliff at 16K (1.7 s/tok, swap); stats-path controllers ~1.5–2×
+  prefill vs plain; controller overhead ≤2% of model time.
+
 ## In progress
-- Benchmark run (latency/memory vs context), long-context eval (8K/16K), re-bench with the
-  faster decode loop; README results injection; ablations rerun (from scratch, 8K steps).
+- Re-benchmark with the optimised decode loop (perf commit) → regenerate docs/results.md.
+- Dashboard static snapshot export after a demo run.
 
 ## Measured facts to remember
 - MPS fp16 vs bf16: 2.6× faster (D-004). enable_gqa vs repeat_kv: 4–25× faster attention on MPS.
