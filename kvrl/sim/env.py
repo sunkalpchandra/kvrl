@@ -114,6 +114,8 @@ class CacheSimEnv:
         self.lost_mass = []  # ℓ_k per step (raw full-cache mass on already-evicted tokens)
         self.crit_retained = []  # per decode step
         self.n_evictions = 0
+        self._cum_mean = np.zeros(0, dtype=np.float32)
+        self._cum_max = np.zeros(0, dtype=np.float32)
         self._pending_state: CacheState | None = None
         return self._advance(reward=0.0)
 
@@ -169,8 +171,6 @@ class CacheSimEnv:
                 return self._finish(reward)
             st = self._build_state(self.k)
             # cumulative attention (H2O statistic) maintained here for heuristics
-            self._cum_mean = getattr(self, "_cum_mean", np.zeros(0, dtype=np.float32))
-            self._cum_max = getattr(self, "_cum_max", np.zeros(0, dtype=np.float32))
             q = st.n_new
             self._cum_mean = np.concatenate([self._cum_mean, np.zeros(q, dtype=np.float32)])
             self._cum_max = np.concatenate([self._cum_max, np.zeros(q, dtype=np.float32)])
