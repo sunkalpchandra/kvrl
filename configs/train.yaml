@@ -2,7 +2,7 @@
 seed: 0
 device: cpu                    # tiny nets: CPU beats MPS launch overhead
 checkpoint_dir: checkpoints
-checkpoint_name: ppo_mlp_v1_3
+checkpoint_name: ppo_mlp_v1_next   # v1 (ppo_mlp_v1.pt) is the shipped policy; see EXPERIMENTS E-014..E-017
 
 data:
   train_dir: data/raw/train
