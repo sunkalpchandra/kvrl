@@ -1,19 +1,22 @@
 # TODO (prioritised)
 
-## Now (Phase 4/5)
-- [ ] finish trace collection; re-run `kvrl.collect` to fill missing code traces (packing fix)
-- [ ] full PPO run (configs/train.yaml, 60K steps) → checkpoints/ppo_mlp_v1.pt; record in EXPERIMENTS.md
-- [ ] E-proxy: sim lost-mass vs real ΔNLL / accuracy correlation across (prompt, policy, budget)
-- [ ] real evaluation matrix (configs/evaluate.yaml) incl. RL; paired CIs vs h2o
-- [ ] benchmark run (configs/benchmark.yaml): latency/memory vs context, decode curve
-- [ ] regressor baseline training (scripts/train_regressor.py) — honest ML baseline
-- [ ] slow integration test on the real model (pytest -m slow)
+## Finishing this session
+- [ ] long-context eval (8K/16K) → report section; record E-010
+- [ ] re-benchmark with the faster decode loop (perf commit) → regenerate report
+- [ ] export dashboard snapshot (scripts/export_demo_snapshot.py) after a demo run
+- [ ] final STATUS/EXPERIMENTS; README numbers re-injected
 
-## Next (Phases 6–12)
-- [ ] ablations script (features/history/arch/protection/global-vs-layer) with plots
-- [ ] generalisation: train 2K–4K → test 8K; unseen depths
-- [ ] failure analysis tools (critical-token evictions, evict-age histograms)
-- [ ] hardware-aware objective (v2: occupancy sub-action + latency term)
-- [ ] dashboard: FastAPI + React (overview, retention strip, decision trace, explorer, Pareto)
-- [ ] perf: profile controller/feature/compaction; batch policy decisions
-- [ ] README with real numbers + diagrams; setup.sh dry-run; Dockerfile
+## Next (v1.x)
+- [ ] ablations with the warm-start protocol or ≥40K steps (E-009 shows 8K from scratch is too weak)
+- [ ] reward that rewards keeping *not-yet-attended* critical tokens (needle failure mode): e.g.
+      key-norm prior in the reward, or a retrieval-head layer-group term
+- [ ] E-proxy rows for rl/regressor (scripts/eproxy.py --controllers rl --reuse <run>)
+- [ ] generalisation table: train ≤4K → 8K real (partially in failure analysis; add real numbers)
+
+## Later (v2+)
+- [ ] adaptive occupancy (Beta sub-action + Lagrangian memory term) → policy-driven Pareto
+- [ ] per-layer-group policies (ragged caches supported by the engine already)
+- [ ] hierarchical chunk→token decisions for 32K+
+- [ ] merge/compress actions (byte budget)
+- [ ] batch > 1 (padding masks with the custom attention)
+- [ ] CUDA validation run
