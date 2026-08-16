@@ -156,6 +156,19 @@ mechanism, not the absolute number, is what transfers.
 Regenerate with `python scripts/make_report.py` (figures in `docs/figures/`, tables in
 `docs/results.md`); `scripts/update_readme_results.py` copies them below verbatim.
 
+![Quality vs KV memory and vs measured latency](docs/figures/pareto.png)
+![Accuracy by task at 25% budget](docs/figures/accuracy_by_task.png)
+![Latency and memory vs context](docs/figures/latency_memory.png)
+![Decode cost vs cache length](docs/figures/decode_curve.png)
+![PPO training](docs/figures/training.png)
+
+Failure analysis (simulator, val traces; `docs/failure_analysis.md`): where controllers keep
+tokens, critical-token retention by task, and RL feature permutation importance.
+
+![Retention profile and evict-age histogram](docs/figures/failure_retention_profile.png)
+![Critical retention by task](docs/figures/failure_critical_by_task.png)
+![Permutation importance](docs/figures/failure_permutation_importance.png)
+
 <!-- RESULTS:BEGIN -->
 ### Real-model evaluation — run `20260816-041435-eval-cc4cddaae0` (commit `902eebbc`, Apple MPS, 494 rows)
 
