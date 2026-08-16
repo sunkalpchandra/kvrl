@@ -90,3 +90,5 @@ def test_answer_matching():
     assert is_correct("The value is 1234-alpha\nmore text", ["1234-alpha"])
     assert not is_correct("1234-bravo", ["1234-alpha"])
     assert not is_correct("", ["x"])
+    assert not is_correct("60", ["6"])  # numeric answers match whole words only
+    assert is_correct("The value is 6.", ["6"]) and is_correct("6", ["6"])

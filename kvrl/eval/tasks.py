@@ -331,19 +331,20 @@ def gen_kv(
 
     v1 used ~200 numeric keys with no prose; the full-cache 0.5B model solved 1/4 (E-007), so
     the task could not discriminate controllers. Now: ``n_pairs`` (default 40) records with
-    two-word keys, prose before and after, the question at the end. The record line is critical.
+    two-word keys (16 by default: 40 still confused the full-cache 0.5B model), prose before and
+    after, the question at the end. The record line is critical.
     """
     rng = random.Random(seed)
     out = []
     for _ in range(n):
-        pairs = n_pairs or 40
+        pairs = n_pairs or 16
         keys: list[str] = []
         while len(keys) < pairs:
             k = f"{rng.choice(_KV_WORDS)}-{rng.choice(_KV_WORDS)}"
             if k not in keys:
                 keys.append(k)
-        vals = [_code(rng) for _ in range(pairs)]
-        lines = [f"record {k}: {v}" for k, v in zip(keys, vals)]
+        vals = [str(rng.randint(1000, 9999)) for _ in range(pairs)]  # plain numbers: the 0.5B
+        lines = [f"record {k}: {v}" for k, v in zip(keys, vals)]  # model truncates NNNN-word
         target_idx = rng.randrange(pairs)
         block = "Records:\n" + "\n".join(lines) + "\n"
         q = (
@@ -438,7 +439,7 @@ def gen_dependency(
     seed: int,
     filler: Filler,
     count_tokens: CountFn,
-    chain_len: int = 3,
+    chain_len: int = 2,
     n_distractors: int = 6,
     arithmetic: bool = False,
 ) -> list[TaskInstance]:
@@ -709,6 +710,12 @@ def is_correct(prediction: str, answers: list[str]) -> bool:
         na = normalize_answer(a)
         if not na:
             continue
-        if pred == na or na in pred:
+        if pred == na:
+            return True
+        # substring match, but numeric answers must match as a whole word ("6" is not in "60")
+        if na.replace(" ", "").isdigit():
+            if re.search(rf"(?<!\d){re.escape(na)}(?!\d)", pred):
+                return True
+        elif na in pred:
             return True
     return False
